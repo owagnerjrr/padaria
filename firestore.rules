@@ -3,7 +3,7 @@ service cloud.firestore {
   match /databases/{database}/documents {
     match /noel/{workspace} {
       function authorized() {
-        return workspace in ['main','preview'] && request.auth != null && exists(/databases/$(database)/documents/authorizedUsers/$(request.auth.uid));
+        return workspace in ['production','preview','main'] && request.auth != null && exists(/databases/$(database)/documents/authorizedUsers/$(request.auth.uid));
       }
       allow read: if authorized();
       allow create: if authorized() && request.resource.data.keys().hasOnly(['schema','createdAt']) && request.resource.data.schema == 1 && request.resource.data.createdAt == request.time;
