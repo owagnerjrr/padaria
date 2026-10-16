@@ -276,3 +276,32 @@ body{background:linear-gradient(180deg,#fff 0,#f3f7ff 370px,#f7f9fc 100%)}
  .qty-input{flex-basis:47px;width:47px!important;max-width:47px}
  .qty-label{flex-basis:23px}
 }
+
+/* Layout móvel definitivo: quantidade em linha própria, sempre dentro do cartão */
+@media (max-width: 900px) {
+ html,body{max-width:100%;overflow-x:hidden}
+ .page-shell,.content-grid,.catalog-panel,.product-list{min-width:0;max-width:100%}
+ .product-row{
+   display:grid!important;
+   grid-template-columns:24px minmax(0,1fr)!important;
+   grid-template-rows:auto auto!important;
+   width:100%!important;max-width:100%!important;min-width:0!important;
+   gap:4px 8px!important;padding:9px 10px!important;overflow:visible!important;
+ }
+ .product-row input[type=checkbox]{grid-column:1!important;grid-row:1!important;align-self:center}
+ .product-name{grid-column:2!important;grid-row:1!important;min-width:0!important;overflow-wrap:anywhere;font-size:13px!important}
+ .product-row .qty-wrap{
+   grid-column:2!important;grid-row:2!important;
+   display:flex!important;visibility:visible!important;
+   justify-content:flex-start!important;align-items:center!important;
+   width:auto!important;min-width:0!important;max-width:100%!important;
+   padding:2px 0!important;gap:7px!important;
+ }
+ .product-row .qty-input{
+   display:block!important;visibility:visible!important;
+   flex:0 0 90px!important;width:90px!important;max-width:90px!important;
+   min-height:34px!important;font-size:14px!important;
+   background:#fff!important;border:1px solid #a8bad3!important;
+ }
+ .product-row .qty-label{flex:0 0 auto!important;font-size:12px!important}
+}
