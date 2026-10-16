@@ -38,6 +38,17 @@
       <button id="clearButton" class="secondary-button" type="button">↻ Limpar seleção</button>
     </section>
 
+    <details class="panel manage-panel" id="manageCatalog">
+      <summary>⚙️ Gerenciar produtos — adicionar ou excluir</summary>
+      <p class="hint">As alterações no catálogo valem para as quatro lojas neste navegador. A categoria é sugerida automaticamente, mas você pode corrigir.</p>
+      <form id="addProductForm" class="manage-form">
+        <label>Nome do produto<input id="newProductName" type="text" maxlength="120" placeholder="Ex.: Pão integral" required /></label>
+        <label>Categoria sugerida<select id="newProductCategory"><option>Doces</option><option>Salgados</option><option>Sabores</option><option>Caseiros</option><option>Hortifrúti</option><option>Açougue</option><option>Pizzas</option></select></label>
+        <button type="submit" class="primary-button">＋ Adicionar produto</button>
+      </form>
+      <div class="manage-remove"><label for="manageSearch">Buscar produto para excluir</label><input id="manageSearch" type="search" placeholder="Pesquisar no catálogo..." /><div id="manageResults" class="manage-results"></div></div>
+      <p id="manageMessage" role="status" class="hint"></p>
+    </details>
     <section class="panel import-panel">
   <div class="section-heading"><div><p class="eyebrow">IMPORTAÇÃO</p><h2>↥ Importar quantidades do Excel</h2></div></div>
   <p class="hint">Selecione a loja acima e escolha um Excel com nomes dos produtos e quantidades. Confira a prévia antes de aplicar.</p>
