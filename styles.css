@@ -197,3 +197,6 @@ body{background:linear-gradient(180deg,#fff 0,#f3f7ff 370px,#f7f9fc 100%)}
 .topbar{border-radius:14px;margin:7px 8px 0}
 .controls-panel{display:flex;flex-direction:column;align-items:stretch}
 }
+
+.chip{display:inline-flex;align-items:center;gap:7px}.chip-icon{font-size:17px;line-height:1;display:inline-flex;align-items:center}.chip.active .chip-icon{filter:brightness(1.1)}
+@media(max-width:680px){.chip{gap:5px}.chip-icon{font-size:15px}}
