@@ -4,8 +4,8 @@
 
 Branch `feat/firestore-realtime`. Sem merge e sem publicação em produção.
 Projeto autorizado: `padariastefany-7ab8a`. Firestore Standard `(default)` criado em
-`southamerica-east1`, plano Spark, inicialmente com todas as operações de cliente
-negadas. Nenhum dado operacional foi importado. App web `Controle de Produção Noel`
+`southamerica-east1`, plano Spark. Após aprovação do usuário, as regras restritas
+foram publicadas e o navegador de teste foi autorizado. Nenhum dado operacional foi importado. App web `Controle de Produção Noel`
 registrado; quatro variáveis públicas do SDK salvas exclusivamente em Preview na Vercel.
 Produção mantém o commit `caf6054`.
 
@@ -18,12 +18,18 @@ Não habilitar acesso irrestrito. A autorização dos aparelhos reais está pend
 ## Estrutura
 
 - `authorizedUsers/{uid}`: autorização criada exclusivamente pelo administrador no console.
-- `noel/main`: marcador imutável de migração, schema e data do servidor.
-- `noel/main/entries/{id}`: registro de um campo, com chave lógica, valor, revisão,
+- `noel/production`: marcador imutável da migração real, schema e data do servidor.
+- `noel/production/entries/{id}`: registro de um campo, com chave lógica, valor, revisão,
   operação única e data do servidor. ID codificado sem barras.
 - Chaves lógicas: `[quantity, loja, categoria|||produto]`,
   `[selected, loja, categoria|||produto]`, `[catalog, all, categoria|||produto]`,
   `[history, loja, id]`.
+
+O build Vercel usa `preview` em Preview e `production` em produção. A área `noel/main`
+é reservada à homologação da primeira versão do preview e ao fallback de desenvolvimento;
+contém somente dados sintéticos. Nunca importar dados operacionais nela. O marcador
+desse teste foi criado pelo administrador com `purpose`, sem executar a migração do app.
+As áreas `production` e `preview` continuam sem inicialização operacional.
 
 Quantidades e seleção têm registros separados. As quatro lojas são independentes.
 O catálogo é global. Exclusão usa marcador; o histórico tem ID estável e não é
@@ -31,7 +37,7 @@ apagado ao salvar uma nova conferência. Não há exclusão física de registros
 
 ## Configurar acesso sem e-mail nem senha
 
-1. Firebase → Authentication → Métodos de login → ativar **Anônimo**.
+1. Firebase → Authentication → Métodos de login → **Anônimo** já ativado.
    Não é necessário cadastrar e-mail, senha ou formulário de login.
 2. Abrir o sistema no aparelho que deseja autorizar. Expandir o painel de
    sincronização e copiar o código (UID) exibido. Criar `authorizedUsers/{UID}` no Firestore pelo console,
@@ -42,7 +48,8 @@ apagado ao salvar uma nova conferência. Não há exclusão física de registros
 3. Registrar um app Web neste projeto e obter a configuração pública do SDK.
 4. Authentication → Configurações → Domínios autorizados: adicionar
    `padaria-kappa-six.vercel.app` e o domínio exato do preview usado nos testes.
-5. Validar `firestore.rules` no emulador e depois publicar para este projeto.
+5. `firestore.rules` já foi validado no simulador do console e publicado neste projeto,
+   conforme aprovação. Ainda é necessário ampliar testes de escrita e de migração no emulador.
    Com CLI autenticada: `firebase deploy --only firestore:rules --project padariastefany-7ab8a`.
 6. Na Vercel, projeto `padaria`, configurar separadamente em Preview e Production:
    `FIREBASE_API_KEY`, `FIREBASE_AUTH_DOMAIN`, `FIREBASE_PROJECT_ID`,
@@ -107,7 +114,7 @@ Executado: `node --test tests/*.test.mjs` (11 testes passaram),
 `git diff --check`.
 Os testes da fila usam um adaptador Firestore controlado, não um serviço real.
 Não executado: regras no emulador (instalação de dependências bloqueada por DNS),
-identificação anônima real, autorização dos aparelhos, testes entre dispositivos e migração real.
+testes entre aparelhos físicos, reconexão real após queda da rede e migração real.
 
 Preview automático do commit inicial `acfa7b3` ficou Ready na Vercel:
 https://padaria-r11a5ihqt-wagners-projects-6386cb6e.vercel.app/
@@ -116,6 +123,35 @@ quantidade sem seleção, marcar/desmarcar preservando 10, lojas 01/02 independe
 zeragem preservando seleção, salvar relatório/histórico, e largura móvel de 390 px.
 Esses resultados não comprovam sincronização remota. A integração Vercel via MCP
 retornou 403 para o escopo; a configuração foi feita pelo dashboard autenticado.
+
+### Validação real com Firebase
+
+Preview autorizado para os testes:
+https://padaria-6avbrvev6-wagners-projects-6386cb6e.vercel.app/
+Commit dessa homologação: `f6ea178`. Os commits posteriores isolam os nomes dos
+ambientes para proteger a futura migração de produção.
+
+- Firebase Authentication anônimo identificou o navegador sem e-mail/senha.
+- Leitura REST sem autenticação retornou HTTP 403 `PERMISSION_DENIED`.
+- Simulador das regras: sem autenticação negado, UID desconhecido negado, UID aprovado permitido.
+- Navegador aprovado: `PMqY68Be1mQYViQamcmJPHT6fb62`, cadastrado pelo administrador.
+- Quantidade `10` sem seleção foi gravada na nuvem e reapareceu após recarregar.
+- Marcar/desmarcar no servidor preservou `10`.
+- Alteração pelo console para `14` apareceu no app aberto **sem recarregar**.
+- Loja 01 continuou vazia enquanto Loja 02 mantinha `10`.
+- Zerar quantidades chegou ao estado sincronizado e preservou a seleção.
+- Conferência com `14` foi salva e sincronizada; histórico remoto por ID.
+- Produto sintético adicionado ao catálogo apareceu nas lojas 02 e 04, uma única vez.
+
+Isso comprova comunicação real app → Firestore e Firestore → app via listener;
+não equivale ao teste de dois aparelhos físicos. Não foi declarada sincronização
+celular/computador como validada.
+
+O teste de upload de CSV/Excel no navegador ficou bloqueado porque a extensão do
+Brave não tem acesso a arquivos locais; nenhuma permissão de extensão foi alterada.
+A confirmação nativa da migração não pôde ser aceita pela automação; por isso,
+a área técnica foi inicializada pelo console. A migração pelo botão continua pendente.
+O teste não usou dados reais e não inicializou `noel/production`.
 
 Antes do merge, testar em contextos independentes de celular e computador:
 
