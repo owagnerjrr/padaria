@@ -259,3 +259,20 @@ body{background:linear-gradient(180deg,#fff 0,#f3f7ff 370px,#f7f9fc 100%)}
  .product-row{grid-template-columns:18px minmax(0,1fr) 77px}
  .qty-input{width:46px}
 }
+
+/* Corrige campo de quantidade oculto em telas estreitas: tudo na mesma linha */
+@media(max-width:680px){
+ .product-list{min-width:0;width:100%}
+ .product-row{display:grid!important;grid-template-columns:19px minmax(0,1fr) 88px!important;align-items:center;width:100%;min-width:0;overflow:hidden;padding:6px 7px;gap:5px}
+ .product-name{min-width:0;overflow-wrap:anywhere;font-size:11px;line-height:1.25}
+ .qty-wrap{grid-column:3!important;grid-row:1!important;min-width:0;width:88px;display:flex;align-items:center;justify-content:flex-end;gap:3px}
+ .qty-input{display:block!important;flex:0 0 55px;width:55px!important;min-width:0;max-width:55px;padding:0 2px}
+ .qty-label{flex:0 0 24px;text-align:left;font-size:10px}
+ .product-row input[type=checkbox]{grid-column:1;grid-row:1;margin:0}
+}
+@media(max-width:360px){
+ .product-row{grid-template-columns:18px minmax(0,1fr) 77px!important;gap:4px}
+ .qty-wrap{width:77px}
+ .qty-input{flex-basis:47px;width:47px!important;max-width:47px}
+ .qty-label{flex-basis:23px}
+}
