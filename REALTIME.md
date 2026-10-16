@@ -5,7 +5,9 @@
 Branch `feat/firestore-realtime`. Sem merge e sem publicação em produção.
 Projeto autorizado: `padariastefany-7ab8a`. Firestore Standard `(default)` criado em
 `southamerica-east1`, plano Spark, inicialmente com todas as operações de cliente
-negadas. Nenhum dado operacional foi importado.
+negadas. Nenhum dado operacional foi importado. App web `Controle de Produção Noel`
+registrado; quatro variáveis públicas do SDK salvas exclusivamente em Preview na Vercel.
+Produção mantém o commit `caf6054`.
 
 O código e os testes locais não substituem testes reais do Firebase. A escolha do
 acesso protegido está pendente: o usuário pediu evitar conta, enquanto a missão
@@ -100,7 +102,15 @@ Executado: `node --test tests/*.test.mjs` (11 testes passaram),
 `git diff --check`.
 Os testes da fila usam um adaptador Firestore controlado, não um serviço real.
 Não executado: regras no emulador (instalação de dependências bloqueada por DNS),
-autenticação real, testes entre dispositivos, migração real e deploy de preview.
+autenticação real, testes entre dispositivos e migração real.
+
+Preview automático do commit inicial `acfa7b3` ficou Ready na Vercel:
+https://padaria-r11a5ihqt-wagners-projects-6386cb6e.vercel.app/
+Testado no navegador (modo local, antes de injetar a configuração Firebase): pesquisa,
+quantidade sem seleção, marcar/desmarcar preservando 10, lojas 01/02 independentes,
+zeragem preservando seleção, salvar relatório/histórico, e largura móvel de 390 px.
+Esses resultados não comprovam sincronização remota. A integração Vercel via MCP
+retornou 403 para o escopo; a configuração foi feita pelo dashboard autenticado.
 
 Antes do merge, testar em contextos independentes de celular e computador:
 

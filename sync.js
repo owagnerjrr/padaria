@@ -15,7 +15,11 @@ let db, auth, sdk, root, collectionRef;
 let unsubscribers=[];
 const queueKey=()=>`noel-outbox-v1-${config.projectId}-${uid}`;
 function persistQueue(){localStorage.setItem(queueKey(),JSON.stringify(queue));}
-function status(){show(failed?'⚠️ Erro de sincronização':!navigator.onLine?'🔴 Sem conexão'+(Object.keys(queue).length?' · alterações pendentes':''):Object.values(queue).some(x=>x.conflict)?'⚠️ Conflito · revisar':Object.keys(queue).length?'🟡 Salvando alterações':ready&&initialized?'🟢 Sincronizado':'🟡 Aguardando nuvem');}
+function status(){
+  const conflicts=Object.values(queue).some(x=>x.conflict);
+  conflictButton.hidden=!conflicts;
+  show(failed?'⚠️ Erro de sincronização':!navigator.onLine?'🔴 Sem conexão'+(Object.keys(queue).length?' · alterações pendentes':''):conflicts?'⚠️ Conflito · revisar':Object.keys(queue).length?'🟡 Salvando alterações':ready&&initialized?'🟢 Sincronizado':'🟡 Aguardando nuvem');
+}
 function lock(value){document.querySelector('main').inert=value;}
 function fail(error){failed=true;message.textContent='Não foi possível sincronizar: '+error.message+'. Os dados locais e a fila foram preservados.';status();}
 function id(key){return btoa(unescape(encodeURIComponent(key))).replaceAll('/','_').replaceAll('+','-').replaceAll('=','');}

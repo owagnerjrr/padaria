@@ -1,5 +1,10 @@
 # Controle de Produção Noel
 
+> Branch de sincronização em validação: consulte [REALTIME.md](REALTIME.md) para
+> configuração Firebase, backup, migração, conflitos e testes pendentes.
+> A publicação desta branch usa `npm run build` e diretório `dist` via `vercel.json`.
+> Não integrar em produção antes da homologação e aprovação.
+
 Sistema web simples e responsivo para conferência diária dos produtos disponíveis nas lojas.
 
 ## Funcionalidades
