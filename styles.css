@@ -305,3 +305,7 @@ body{background:linear-gradient(180deg,#fff 0,#f3f7ff 370px,#f7f9fc 100%)}
  }
  .product-row .qty-label{flex:0 0 auto!important;font-size:12px!important}
 }
+
+.share-options{display:grid;gap:7px;margin-top:6px;padding:9px;background:#f1f7ff;border:1px solid #d4e2f6;border-radius:12px}
+.share-options[hidden]{display:none!important}
+.share-options button{min-height:42px}
