@@ -37,7 +37,19 @@
       <button id="clearButton" class="secondary-button" type="button">Limpar seleção</button>
     </section>
 
-    <section class="stats-grid">
+    <section class="panel import-panel">
+  <div class="section-heading"><div><p class="eyebrow">IMPORTAÇÃO</p><h2>Importar quantidades do Excel</h2></div></div>
+  <p class="hint">Selecione a loja acima e escolha um Excel com nomes dos produtos e quantidades. Confira a prévia antes de aplicar.</p>
+  <input id="excelFile" type="file" accept=".xlsx,.xls,.csv" aria-label="Selecionar planilha" />
+  <div id="importStatus" role="status"></div>
+  <div id="importPreview" hidden>
+    <div id="importResults"></div>
+    <label class="import-option"><input type="checkbox" id="replaceImport" /> Substituir marcações atuais desta loja (em vez de adicionar)</label>
+    <button id="confirmImport" class="primary-button" type="button">Confirmar importação</button>
+    <button id="cancelImport" class="secondary-button" type="button">Cancelar</button>
+  </div>
+</section>
+<section class="stats-grid">
       <article class="stat-card">
         <span>Produtos marcados</span>
         <strong id="selectedCount">0</strong>
@@ -95,6 +107,7 @@
     </section>
   </main>
 
+  <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
   <script src="app.js"></script>
 </body>
 </html>
