@@ -231,7 +231,6 @@ els.clearQuantitiesButton.addEventListener("click", () => {
     els.savedMessage.textContent = "Não há quantidades preenchidas para zerar nesta loja.";
     return;
   }
-  if (!confirm("Zerar todas as quantidades da Loja " + state.store + "? Os produtos marcados continuarão selecionados.")) return;
   state.quantities = {};
   Object.values(state.selected).forEach(item => { item.qty = ""; });
   persistCurrent();
