@@ -46,6 +46,9 @@ const els = {
   saveButton: document.getElementById("saveButton"),
   copyButton: document.getElementById("copyButton"),
   whatsappButton: document.getElementById("whatsappButton"),
+  shareOptions: document.getElementById("shareOptions"),
+  whatsappTextButton: document.getElementById("whatsappTextButton"),
+  whatsappExcelButton: document.getElementById("whatsappExcelButton"),
   savedMessage: document.getElementById("savedMessage"),
   historyList: document.getElementById("historyList"),
   onlySelected: document.getElementById("onlySelected"),
@@ -251,9 +254,64 @@ els.copyButton.addEventListener("click", async () => {
   }
 });
 
-els.whatsappButton.addEventListener("click", () => {
+function createExcelFile() {
+  if (typeof XLSX === "undefined") throw new Error("Biblioteca Excel não carregada. Verifique sua conexão.");
+  const items = selectedItems();
+  if (!items.length) throw new Error("Marque pelo menos um produto para exportar.");
+  const date = new Date();
+  const formattedDate = date.toLocaleDateString("pt-BR");
+  const rows = [
+    ["NOEL SUPERMERCADOS — RELATÓRIO DE PRODUÇÃO"],
+    ["Loja", state.store],
+    ["Data", formattedDate],
+    [],
+    ["Categoria", "Produto", "Quantidade", "Unidade"]
+  ];
+  items.forEach(item => {
+    const raw = String(item.qty ?? "").trim().replace(",", ".");
+    rows.push([item.category,item.name,raw !== "" && Number.isFinite(Number(raw)) ? Number(raw) : "",itemUnit(item)]);
+  });
+  rows.push([],["Total de produtos",items.length]);
+  const ws = XLSX.utils.aoa_to_sheet(rows);
+  ws["!cols"] = [{wch:20},{wch:48},{wch:16},{wch:12}];
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb,ws,"Conferência");
+  const bytes = XLSX.write(wb,{bookType:"xlsx",type:"array"});
+  const filename = "Producao_Noel_Loja_"+state.store+"_"+date.getFullYear()+"-"+String(date.getMonth()+1).padStart(2,"0")+"-"+String(date.getDate()).padStart(2,"0")+".xlsx";
+  return new File([bytes],filename,{type:"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"});
+}
+function downloadExcel(file) {
+  const url = URL.createObjectURL(file);
+  const a = document.createElement("a");
+  a.href = url;a.download=file.name;
+  document.body.appendChild(a);a.click();a.remove();
+  setTimeout(()=>URL.revokeObjectURL(url),1500);
+}
+els.whatsappButton.addEventListener("click",()=>{
+  els.shareOptions.hidden=!els.shareOptions.hidden;
+  els.whatsappButton.setAttribute("aria-expanded",String(!els.shareOptions.hidden));
+});
+els.whatsappTextButton.addEventListener("click",()=>{
   const report = encodeURIComponent(buildReport());
-  window.open(`https://wa.me/?text=${report}`, "_blank", "noopener,noreferrer");
+  window.open("https://wa.me/?text="+report,"_blank","noopener,noreferrer");
+});
+els.whatsappExcelButton.addEventListener("click",async()=>{
+  try {
+    const file=createExcelFile();
+    if (navigator.share && navigator.canShare && navigator.canShare({files:[file]})) {
+      try {
+        await navigator.share({files:[file],title:"Produção Noel — Loja "+state.store});
+        els.savedMessage.textContent="Arquivo compartilhado pelo sistema do celular.";
+        return;
+      } catch(e) {
+        if(e.name==="AbortError")return;
+      }
+    }
+    downloadExcel(file);
+    els.savedMessage.textContent="Excel baixado. Abra o WhatsApp e anexe o arquivo ao grupo desejado.";
+  } catch(e) {
+    els.savedMessage.textContent=e.message;
+  }
 });
 
 renderFilters();
