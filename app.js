@@ -102,14 +102,14 @@ function renderProducts() {
       const qty = item?.qty ?? "";
       const unit = /(?:\bkg\b|\bquilo\b)/i.test(name) ? "kg" : "un.";
       const safeQty = String(qty).replace(/[^0-9.,]/g,"");
-      return `<label class="product-row ${checked ? "selected" : ""}">
-        <input type="checkbox" data-key="${encodeURIComponent(key)}" ${checked ? "checked" : ""} />
+      return `<div class="product-row ${checked ? "selected" : ""}">
+        <input type="checkbox" aria-label="Selecionar ${name}" data-key="${encodeURIComponent(key)}" ${checked ? "checked" : ""} />
         <span class="product-name">${name}</span>
         <span class="qty-wrap">
-          <input class="qty-input" data-qty-key="${encodeURIComponent(key)}" type="number" min="0" step="any" inputmode="decimal" placeholder="Qtd." value="${safeQty}" ${checked ? "" : "disabled"} />
+          <input class="qty-input" aria-label="Quantidade de ${name}" data-qty-key="${encodeURIComponent(key)}" type="number" min="0" step="any" inputmode="decimal" placeholder="Qtd." value="${safeQty}" ${checked ? "" : "disabled"} />
           <span class="qty-label">${unit}</span>
         </span>
-      </label>`;
+      </div>`;
     }).join("");
   });
 
