@@ -86,6 +86,16 @@ function renderFilters() {
   }));
 }
 
+function loadQuantities(store) {
+  const saved = JSON.parse(localStorage.getItem(`noel-quantities-${store}`) || "{}");
+  const selected = JSON.parse(localStorage.getItem(`noel-current-${store}`) || "{}");
+  Object.entries(selected).forEach(([key,item]) => {
+    if (!(key in saved)) saved[key] = item.qty ?? "";
+  });
+  return saved;
+}
+state.quantities = loadQuantities(state.store);
+
 function renderProducts() {
   const query = normalize(state.search.trim());
   const categories = state.category === "Todos" ? Object.keys(catalog) : [state.category];
@@ -99,7 +109,7 @@ function renderProducts() {
       const key = keyFor(category, name);
       const item = state.selected[key];
       const checked = Boolean(item);
-      const qty = item?.qty ?? "";
+      const qty = state.quantities[key] ?? item?.qty ?? "";
       const unit = /(?:\bkg\b|\bquilo\b)/i.test(name) ? "kg" : "un.";
       const safeQty = String(qty).replace(/[^0-9.,]/g,"");
       return `<div class="product-row ${checked ? "selected" : ""}">
@@ -119,7 +129,7 @@ function renderProducts() {
     const key = decodeURIComponent(event.target.dataset.key);
     const [category, name] = key.split("|||");
     if (event.target.checked) {
-      state.selected[key] = { category, name, qty: "" };
+      state.selected[key] = { category, name, qty: state.quantities[key] ?? "" };
     } else {
       delete state.selected[key];
     }
@@ -130,18 +140,10 @@ function renderProducts() {
 
   els.productList.querySelectorAll(".qty-input").forEach(input => input.addEventListener("input", event => {
     const key = decodeURIComponent(event.target.dataset.qtyKey);
-    if (!state.selected[key]) {
-      const [category, name] = key.split("|||");
-      state.selected[key] = { category, name, qty: "" };
-      const checkbox = els.productList.querySelector(`input[type="checkbox"][data-key="${encodeURIComponent(key)}"]`);
-      if (checkbox) checkbox.checked = true;
-      event.target.closest(".product-row")?.classList.add("selected");
-    }
-    if (state.selected[key]) {
-      state.selected[key].qty = event.target.value;
-      persistCurrent();
-      renderSummary();
-    }
+    state.quantities[key] = event.target.value;
+    if (state.selected[key]) state.selected[key].qty = event.target.value;
+    persistCurrent();
+    renderSummary();
   }));
 }
 
@@ -186,6 +188,7 @@ function renderSummary() {
 }
 
 function persistCurrent() {
+  localStorage.setItem(`noel-quantities-${state.store}`, JSON.stringify(state.quantities));
   localStorage.setItem(`noel-current-${state.store}`, JSON.stringify(state.selected));
 }
 
@@ -205,6 +208,7 @@ els.storeSelect.addEventListener("change", e => {
   state.store = e.target.value;
   localStorage.setItem("noel-store", state.store);
   state.selected = JSON.parse(localStorage.getItem(`noel-current-${state.store}`) || "{}");
+  state.quantities = loadQuantities(state.store);
   renderProducts();
   renderSummary();
 });
@@ -343,7 +347,7 @@ els.confirmImport.addEventListener("click",()=>{
   if(!pendingImport.items.length)return;
   if(els.replaceImport.checked&&!confirm("Substituir todas as marcações atuais da Loja "+state.store+"?"))return;
   const next=els.replaceImport.checked?{}:{...state.selected};
-  pendingImport.items.forEach(item=>next[item.key]={category:item.category,name:item.name,qty:item.qty});
+  pendingImport.items.forEach(item=>{state.quantities[item.key]=item.qty;next[item.key]={category:item.category,name:item.name,qty:item.qty};});
   state.selected=next;persistCurrent();renderProducts();renderSummary();
   els.importStatus.textContent="Importação concluída na Loja "+state.store+". Confira e salve a conferência.";
   closeImport();
