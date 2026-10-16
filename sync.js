@@ -13,7 +13,7 @@ const original=api.read();
 let ready=false, initialized=false, remote={}, revisions={}, queue={}, processing=false, timer, failed=false, uid;
 let db, auth, authApi, sdk, root, collectionRef;
 let unsubscribers=[];
-const queueKey=()=>`noel-outbox-v1-${config.projectId}-${uid}`;
+const queueKey=()=>`noel-outbox-v1-${config.projectId}-${config.workspace||'main'}-${uid}`;
 function persistQueue(){localStorage.setItem(queueKey(),JSON.stringify(queue));}
 function status(){
   const conflicts=Object.values(queue).some(x=>x.conflict);
@@ -159,7 +159,7 @@ else{
     sdk=firestoreSdk;authApi=authSdk;const app=initializeApp(config);auth=authSdk.getAuth(app);
     await authSdk.setPersistence(auth,authSdk.browserLocalPersistence);
     db=sdk.initializeFirestore(app,{localCache:sdk.persistentLocalCache({tabManager:sdk.persistentMultipleTabManager()})});
-    root=sdk.doc(db,'noel/main');collectionRef=sdk.collection(root,'entries');
+    root=sdk.doc(db,'noel/'+(config.workspace||'main'));collectionRef=sdk.collection(root,'entries');
     // Uma aba editora por navegador impede disputa pela mesma fila local.
     if(!navigator.locks)throw Error('Navegador sem suporte à proteção de múltiplas abas; use Chrome, Edge ou Safari atualizado');
     navigator.locks.request('noel-sync-'+config.projectId,{ifAvailable:true},async lockHandle=>{

@@ -1,23 +1,23 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    function authorized() {
-      return request.auth != null && exists(/databases/$(database)/documents/authorizedUsers/$(request.auth.uid));
-    }
-    match /noel/main {
+    match /noel/{workspace} {
+      function authorized() {
+        return workspace in ['main','preview'] && request.auth != null && exists(/databases/$(database)/documents/authorizedUsers/$(request.auth.uid));
+      }
       allow read: if authorized();
       allow create: if authorized() && request.resource.data.keys().hasOnly(['schema','createdAt']) && request.resource.data.schema == 1 && request.resource.data.createdAt == request.time;
       allow update, delete: if false;
       match /entries/{id} {
         allow read: if authorized();
         allow create, update: if authorized()
-          && existsAfter(/databases/$(database)/documents/noel/main)
+          && existsAfter(/databases/$(database)/documents/noel/$(workspace))
           && request.resource.data.keys().hasOnly(['key','value','revision','updatedAt','operation'])
           && request.resource.data.key is string && request.resource.data.key.size() < 1500
           && request.resource.data.operation is string
           && request.resource.data.updatedAt == request.time
           && request.resource.data.revision is int
-          && ((!exists(/databases/$(database)/documents/noel/main/entries/$(id)) && request.resource.data.revision == 1)
+          && ((!exists(/databases/$(database)/documents/noel/$(workspace)/entries/$(id)) && request.resource.data.revision == 1)
             || (resource != null && request.resource.data.key == resource.data.key && request.resource.data.revision == resource.data.revision + 1));
         allow delete: if false;
       }
