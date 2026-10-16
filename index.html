@@ -10,9 +10,10 @@
   <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
+  <div class="brand-welcome"><div class="brand-identity"><img src="assets/noel-logo.svg" alt="Noel Supermercados — O melhor para sua família, sempre perto de você!" /></div><div class="welcome"><span class="welcome-avatar" aria-hidden="true">👤</span><div><strong>Olá, Stefany!</strong><span>Seu painel de conferência diária</span></div></div></div>
   <header class="topbar">
     <div>
-      <p class="eyebrow">NOEL SUPERMERCADOS</p>
+      <p class="eyebrow">☑ PAINEL DE PRODUÇÃO</p>
       <h1>Controle de Produção</h1>
       <p class="subtitle">Conferência diária de produtos disponíveis no balcão</p>
     </div>
@@ -34,11 +35,11 @@
         <label for="searchInput">Pesquisar produto</label>
         <input id="searchInput" type="search" placeholder="Ex.: brownie, pão de queijo, pizza..." autocomplete="off" />
       </div>
-      <button id="clearButton" class="secondary-button" type="button">Limpar seleção</button>
+      <button id="clearButton" class="secondary-button" type="button">↻ Limpar seleção</button>
     </section>
 
     <section class="panel import-panel">
-  <div class="section-heading"><div><p class="eyebrow">IMPORTAÇÃO</p><h2>Importar quantidades do Excel</h2></div></div>
+  <div class="section-heading"><div><p class="eyebrow">IMPORTAÇÃO</p><h2>↥ Importar quantidades do Excel</h2></div></div>
   <p class="hint">Selecione a loja acima e escolha um Excel com nomes dos produtos e quantidades. Confira a prévia antes de aplicar.</p>
   <input id="excelFile" type="file" accept=".xlsx,.xls,.csv" aria-label="Selecionar planilha" />
   <div id="importStatus" role="status"></div>
@@ -51,15 +52,15 @@
 </section>
 <section class="stats-grid">
       <article class="stat-card">
-        <span>Produtos marcados</span>
+        <span>☑ Produtos marcados</span>
         <strong id="selectedCount">0</strong>
       </article>
       <article class="stat-card">
-        <span>Quantidade informada</span>
+        <span>▣ Quantidade informada</span>
         <strong id="unitsCount">0</strong>
       </article>
       <article class="stat-card">
-        <span>Categorias</span>
+        <span>◇ Categorias</span>
         <strong id="categoryCount">0</strong>
       </article>
     </section>
@@ -69,7 +70,7 @@
         <div class="section-heading">
           <div>
             <p class="eyebrow">CHECKLIST</p>
-            <h2>Produtos disponíveis</h2>
+            <h2>☑ Produtos disponíveis</h2>
           </div>
           <span class="hint">Marque o item e informe a quantidade se quiser.</span>
         </div>
@@ -81,7 +82,7 @@
         <div class="section-heading compact">
           <div>
             <p class="eyebrow">RELATÓRIO</p>
-            <h2>Resumo da conferência</h2>
+            <h2>▤ Resumo da conferência</h2>
           </div>
         </div>
         <div id="summaryEmpty" class="empty-state">Nenhum produto selecionado ainda.</div>
@@ -100,7 +101,7 @@
       <div class="section-heading">
         <div>
           <p class="eyebrow">HISTÓRICO</p>
-          <h2>Últimas conferências salvas</h2>
+          <h2>◷ Últimas conferências salvas</h2>
         </div>
       </div>
       <div id="historyList" class="history-list"></div>
