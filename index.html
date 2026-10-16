@@ -91,7 +91,11 @@
         <div class="action-stack">
           <button id="saveButton" class="secondary-button full" type="button">Salvar conferência</button>
           <button id="copyButton" class="primary-button full" type="button">Copiar relatório</button>
-          <button id="whatsappButton" class="whatsapp-button full" type="button">Enviar pelo WhatsApp</button>
+          <button id="whatsappButton" class="whatsapp-button full" type="button" aria-expanded="false" aria-controls="shareOptions">Enviar pelo WhatsApp ▾</button>
+          <div id="shareOptions" class="share-options" hidden>
+            <button id="whatsappTextButton" class="whatsapp-button full" type="button">💬 Enviar como mensagem</button>
+            <button id="whatsappExcelButton" class="secondary-button full" type="button">📊 Enviar como Excel (.xlsx)</button>
+          </div>
         </div>
         <p class="saved-message" id="savedMessage" role="status"></p>
       </aside>
