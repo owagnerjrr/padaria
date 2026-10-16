@@ -17,9 +17,19 @@
       <h1>Controle de Produção</h1>
       <p class="subtitle">Conferência diária de produtos disponíveis no balcão</p>
     </div>
-    <div class="date-badge" id="todayLabel"></div>
+    <div><div class="date-badge" id="todayLabel"></div><span id="syncStatus" role="status" aria-live="polite">🟡 Verificando sincronização</span></div>
   </header>
 
+  <details class="panel" id="syncPanel" style="margin:12px auto;max-width:1280px;padding:12px">
+    <summary>☁ Conta, backup e sincronização</summary>
+    <p id="syncMessage" role="status"></p>
+    <form id="loginForm"><label>E-mail <input name="email" type="email" autocomplete="username" required></label> <label>Senha <input name="password" type="password" autocomplete="current-password" required></label> <button type="submit">Entrar</button></form>
+    <button id="backupButton" type="button">Baixar backup de recuperação</button>
+    <button id="retrySync" type="button">Reconectar</button>
+    <pre id="migrationPreview" hidden style="white-space:pre-wrap;max-height:280px;overflow:auto"></pre>
+    <button id="migrateButton" type="button" hidden>Confirmar importação inicial da prévia</button>
+    <button id="conflictButton" type="button" hidden>Revisar conflitos preservados</button>
+  </details>
   <main class="page-shell">
     <section class="panel controls-panel">
       <div class="field-group">
@@ -40,7 +50,7 @@
 
     <details class="panel manage-panel" id="manageCatalog">
       <summary>⚙️ Gerenciar produtos — adicionar ou excluir</summary>
-      <p class="hint">As alterações no catálogo valem para as quatro lojas neste navegador. A categoria é sugerida automaticamente, mas você pode corrigir.</p>
+      <p class="hint">As alterações no catálogo valem para as quatro lojas. A categoria é sugerida automaticamente, mas você pode corrigir.</p>
       <form id="addProductForm" class="manage-form">
         <label>Nome do produto<input id="newProductName" type="text" maxlength="120" placeholder="Ex.: Pão integral" required /></label>
         <label>Categoria sugerida<select id="newProductCategory"><option>Doces</option><option>Salgados</option><option>Sabores</option><option>Caseiros</option><option>Hortifrúti</option><option>Açougue</option><option>Pizzas</option></select></label>
@@ -125,5 +135,6 @@
 
   <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
   <script src="app.js"></script>
+  <script type="module" src="sync.js"></script>
 </body>
 </html>
