@@ -35,6 +35,7 @@ const els = {
   storeSelect: document.getElementById("storeSelect"),
   searchInput: document.getElementById("searchInput"),
   clearButton: document.getElementById("clearButton"),
+  clearQuantitiesButton: document.getElementById("clearQuantitiesButton"),
   categoryFilters: document.getElementById("categoryFilters"),
   productList: document.getElementById("productList"),
   summaryList: document.getElementById("summaryList"),
@@ -222,6 +223,21 @@ els.clearButton.addEventListener("click", () => {
     renderProducts();
     renderSummary();
   }
+});
+
+els.clearQuantitiesButton.addEventListener("click", () => {
+  const hasQuantities = Object.values(state.quantities).some(value => String(value ?? "").trim() !== "");
+  if (!hasQuantities) {
+    els.savedMessage.textContent = "Não há quantidades preenchidas para zerar nesta loja.";
+    return;
+  }
+  if (!confirm("Zerar todas as quantidades da Loja " + state.store + "? Os produtos marcados continuarão selecionados.")) return;
+  state.quantities = {};
+  Object.values(state.selected).forEach(item => { item.qty = ""; });
+  persistCurrent();
+  renderProducts();
+  renderSummary();
+  els.savedMessage.textContent = "Quantidades da Loja " + state.store + " zeradas. Seleções preservadas.";
 });
 
 els.saveButton.addEventListener("click", () => {
