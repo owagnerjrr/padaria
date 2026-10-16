@@ -22,6 +22,24 @@ const catalog = {
   ]
 };
 
+// Personalizações locais do catálogo, preservando a lista original.
+const baseCatalog = JSON.parse(JSON.stringify(catalog));
+function readCatalogEdits() {
+  try { return JSON.parse(localStorage.getItem("noel-catalog-edits") || '{"added":[],"removed":[]}'); }
+  catch { return {added:[],removed:[]}; }
+}
+const catalogEdits = readCatalogEdits();
+function applyCatalogEdits() {
+  Object.keys(catalog).forEach(category => {
+    catalog[category] = baseCatalog[category].filter(name => !catalogEdits.removed.some(item => item.category === category && item.name === name));
+  });
+  catalogEdits.added.forEach(item => {
+    if (catalog[item.category] && !catalog[item.category].some(name => normalize(name) === normalize(item.name))) catalog[item.category].push(item.name);
+  });
+}
+function saveCatalogEdits() { localStorage.setItem("noel-catalog-edits",JSON.stringify(catalogEdits));applyCatalogEdits(); }
+applyCatalogEdits();
+
 const state = {
   store: localStorage.getItem("noel-store") || "02",
   category: "Todos",
@@ -80,6 +98,69 @@ function normalize(text) {
 }
 
 const categoryIcons = ["▦","🧁","🥟","🍮","🥖","🌿","🥩","🍕"];
+const manage = {
+  form:document.getElementById("addProductForm"),
+  name:document.getElementById("newProductName"),
+  category:document.getElementById("newProductCategory"),
+  search:document.getElementById("manageSearch"),
+  results:document.getElementById("manageResults"),
+  message:document.getElementById("manageMessage")
+};
+function suggestCategory(name) {
+  const n=normalize(name);
+  if (/pizza|brotinho|calabresa forneavel|provolone/.test(n)) return "Pizzas";
+  if (/carne|frango|bife|linguica|costela|kafta|hamburguer|medalhao|pernil|almondega|espetinho/.test(n)) return "Açougue";
+  if (/fruta|salada|legume|verdura|couve|cenoura picad|cenoura ralad|abobora|suco|repolho|hortela|chuchu|abobrinha|vinagrete/.test(n)) return "Hortifrúti";
+  if (/croissant|esfirra|empada|pastel|salgado|bauru|focaccia|baguete|coxinha|pao de queijo|torta de frango/.test(n)) return "Salgados";
+  if (/caseiro|broa|fuba|cacarola/.test(n)) return "Caseiros";
+  if (/sabor|recheio|cobertura/.test(n)) return "Sabores";
+  return "Doces";
+}
+manage.name.addEventListener("input",()=>{manage.category.value=suggestCategory(manage.name.value);});
+function refreshCatalog() { renderFilters();renderProducts();renderSummary();renderManageResults(); }
+manage.form.addEventListener("submit",event=>{
+  event.preventDefault();
+  const name=manage.name.value.trim().replace(/\\s+/g," ");
+  const category=manage.category.value;
+  if(!name || !catalog[category])return;
+  const duplicate=Object.entries(catalog).some(([cat,names])=>names.some(x=>normalize(x)===normalize(name)));
+  if(duplicate){manage.message.textContent="Este nome já existe no catálogo. Use outro nome.";return;}
+  catalogEdits.removed=catalogEdits.removed.filter(item=>!(item.category===category&&normalize(item.name)===normalize(name)));
+  catalogEdits.added.push({category,name});
+  saveCatalogEdits();manage.name.value="";manage.message.textContent="Produto adicionado em "+category+".";
+  refreshCatalog();
+});
+function renderManageResults() {
+  const query=normalize(manage.search.value.trim());
+  if(!query){manage.results.replaceChildren();return;}
+  const items=Object.entries(catalog).flatMap(([category,names])=>names.map(name=>({category,name})))
+    .filter(item=>normalize(item.name).includes(query)).slice(0,30);
+  manage.results.replaceChildren();
+  items.forEach(item=>{
+    const row=document.createElement("div");row.className="manage-result";
+    const label=document.createElement("span");label.textContent=item.name+" · "+item.category;
+    const button=document.createElement("button");button.type="button";button.textContent="Excluir";button.className="manage-delete";
+    button.addEventListener("click",()=>{
+      if(!confirm('Excluir "'+item.name+'" do catálogo? As quantidades e seleções deste produto serão apagadas nas quatro lojas.'))return;
+      const key=keyFor(item.category,item.name);
+      catalogEdits.added=catalogEdits.added.filter(x=>!(x.category===item.category&&x.name===item.name));
+      if(baseCatalog[item.category].includes(item.name))catalogEdits.removed.push(item);
+      for(const store of ["01","02","03","04"]){
+        const selected=JSON.parse(localStorage.getItem(`noel-current-${store}`)||"{}");
+        const quantities=JSON.parse(localStorage.getItem(`noel-quantities-${store}`)||"{}");
+        delete selected[key];delete quantities[key];
+        localStorage.setItem(`noel-current-${store}`,JSON.stringify(selected));
+        localStorage.setItem(`noel-quantities-${store}`,JSON.stringify(quantities));
+      }
+      delete state.selected[key];delete state.quantities[key];
+      saveCatalogEdits();manage.message.textContent="Produto excluído do catálogo.";refreshCatalog();
+    });
+    row.append(label,button);manage.results.append(row);
+  });
+  if(!items.length)manage.results.textContent="Nenhum produto encontrado.";
+}
+manage.search.addEventListener("input",renderManageResults);
+
 function renderFilters() {
   const categories = ["Todos", ...Object.keys(catalog)];
   els.categoryFilters.innerHTML = categories.map((cat, i) => `<button class="chip ${state.category === cat ? "active" : ""}" data-category="${cat}"><span class="chip-icon" aria-hidden="true">${categoryIcons[i]}</span> ${cat}</button>`).join("");
