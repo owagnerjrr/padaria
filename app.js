@@ -26,6 +26,7 @@ const state = {
   store: localStorage.getItem("noel-store") || "02",
   category: "Todos",
   search: "",
+  onlySelected: false,
   selected: JSON.parse(localStorage.getItem("noel-current") || "{}")
 };
 
@@ -46,9 +47,15 @@ const els = {
   copyButton: document.getElementById("copyButton"),
   whatsappButton: document.getElementById("whatsappButton"),
   savedMessage: document.getElementById("savedMessage"),
-  historyList: document.getElementById("historyList")
+  historyList: document.getElementById("historyList"),
+  onlySelected: document.getElementById("onlySelected")
 };
 
+// Migrate the existing draft to the current store without losing selections.
+if (!localStorage.getItem(`noel-current-${state.store}`) && localStorage.getItem("noel-current")) {
+  localStorage.setItem(`noel-current-${state.store}`, localStorage.getItem("noel-current"));
+}
+state.selected = JSON.parse(localStorage.getItem(`noel-current-${state.store}`) || "{}");
 const today = new Date();
 els.todayLabel.textContent = today.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric" });
 els.storeSelect.value = state.store;
@@ -77,7 +84,7 @@ function renderProducts() {
   let html = "";
 
   categories.forEach(category => {
-    const matches = catalog[category].filter(name => !query || normalize(name).includes(query));
+    const matches = catalog[category].filter(name => (!query || normalize(name).includes(query)) && (!state.onlySelected || !!state.selected[keyFor(category,name)]));
     if (!matches.length) return;
     html += `<div class="category-title">${category}</div>`;
     html += matches.map(name => {
@@ -85,12 +92,14 @@ function renderProducts() {
       const item = state.selected[key];
       const checked = Boolean(item);
       const qty = item?.qty ?? "";
+      const unit = /(?:\bkg\b|\bquilo\b)/i.test(name) ? "kg" : "un.";
+      const safeQty = String(qty).replace(/[^0-9.,]/g,"");
       return `<label class="product-row ${checked ? "selected" : ""}">
         <input type="checkbox" data-key="${encodeURIComponent(key)}" ${checked ? "checked" : ""} />
         <span class="product-name">${name}</span>
         <span class="qty-wrap">
-          <input class="qty-input" data-qty-key="${encodeURIComponent(key)}" type="number" min="0" step="1" inputmode="numeric" placeholder="Qtd." value="${qty}" ${checked ? "" : "disabled"} />
-          <span class="qty-label">un.</span>
+          <input class="qty-input" data-qty-key="${encodeURIComponent(key)}" type="number" min="0" step="any" inputmode="decimal" placeholder="Qtd." value="${safeQty}" ${checked ? "" : "disabled"} />
+          <span class="qty-label">${unit}</span>
         </span>
       </label>`;
     }).join("");
@@ -121,6 +130,8 @@ function renderProducts() {
   }));
 }
 
+function itemUnit(item) { return /(?:\bkg\b|\bquilo\b)/i.test(item.name) ? "kg" : "un."; }
+function quantity(item) { return Number(String(item.qty || "").replace(",", ".")) || 0; }
 function selectedItems() {
   return Object.values(state.selected).sort((a,b) => a.category.localeCompare(b.category) || a.name.localeCompare(b.name));
 }
@@ -141,9 +152,11 @@ function buildReport() {
     lines.push(`• ${item.name}${qty ? ` — ${qty} un.` : ""}`);
   });
 
-  const totalUnits = items.reduce((sum, item) => sum + (Number(item.qty) || 0), 0);
+  const totalUnits = items.filter(item => itemUnit(item) === "un.").reduce((sum, item) => sum + quantity(item), 0);
+  const totalKg = items.filter(item => itemUnit(item) === "kg").reduce((sum, item) => sum + quantity(item), 0);
   lines.push("", `Total de produtos: ${items.length}`);
   if (totalUnits > 0) lines.push(`Total de unidades informadas: ${totalUnits}`);
+  if (totalKg > 0) lines.push(`Total em kg informado: ${totalKg}`);
   return lines.join("\n");
 }
 
@@ -153,12 +166,12 @@ function renderSummary() {
   els.summaryList.innerHTML = items.map(item => `<div class="summary-item"><strong>${item.name}</strong><span>${item.category}${item.qty ? ` · ${item.qty} un.` : ""}</span></div>`).join("");
   els.reportPreview.value = buildReport();
   els.selectedCount.textContent = items.length;
-  els.unitsCount.textContent = items.reduce((sum, item) => sum + (Number(item.qty) || 0), 0);
+  els.unitsCount.textContent = items.filter(item => itemUnit(item) === "un.").reduce((sum, item) => sum + quantity(item), 0);
   els.categoryCount.textContent = new Set(items.map(item => item.category)).size;
 }
 
 function persistCurrent() {
-  localStorage.setItem("noel-current", JSON.stringify(state.selected));
+  localStorage.setItem(`noel-current-${state.store}`, JSON.stringify(state.selected));
 }
 
 function renderHistory() {
@@ -171,10 +184,13 @@ function renderHistory() {
     </article>`).join("") : `<div class="empty-state">Nenhuma conferência salva ainda.</div>`;
 }
 
+els.onlySelected.addEventListener("change", e => { state.onlySelected = e.target.checked; renderProducts(); });
 els.searchInput.addEventListener("input", e => { state.search = e.target.value; renderProducts(); });
 els.storeSelect.addEventListener("change", e => {
   state.store = e.target.value;
   localStorage.setItem("noel-store", state.store);
+  state.selected = JSON.parse(localStorage.getItem(`noel-current-${state.store}`) || "{}");
+  renderProducts();
   renderSummary();
 });
 els.clearButton.addEventListener("click", () => {
