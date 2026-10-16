@@ -106,7 +106,7 @@ function renderProducts() {
         <input type="checkbox" aria-label="Selecionar ${name}" data-key="${encodeURIComponent(key)}" ${checked ? "checked" : ""} />
         <span class="product-name">${name}</span>
         <span class="qty-wrap">
-          <input class="qty-input" aria-label="Quantidade de ${name}" data-qty-key="${encodeURIComponent(key)}" type="number" min="0" step="any" inputmode="decimal" placeholder="Qtd." value="${safeQty}" ${checked ? "" : "disabled"} />
+          <input class="qty-input" aria-label="Quantidade de ${name}" data-qty-key="${encodeURIComponent(key)}" type="number" min="0" step="any" inputmode="decimal" placeholder="Qtd." value="${safeQty}" />
           <span class="qty-label">${unit}</span>
         </span>
       </div>`;
@@ -130,6 +130,13 @@ function renderProducts() {
 
   els.productList.querySelectorAll(".qty-input").forEach(input => input.addEventListener("input", event => {
     const key = decodeURIComponent(event.target.dataset.qtyKey);
+    if (!state.selected[key]) {
+      const [category, name] = key.split("|||");
+      state.selected[key] = { category, name, qty: "" };
+      const checkbox = els.productList.querySelector(`input[type="checkbox"][data-key="${encodeURIComponent(key)}"]`);
+      if (checkbox) checkbox.checked = true;
+      event.target.closest(".product-row")?.classList.add("selected");
+    }
     if (state.selected[key]) {
       state.selected[key].qty = event.target.value;
       persistCurrent();
