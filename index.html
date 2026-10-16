@@ -1,0 +1,100 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Controle de Produção Noel</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <header class="topbar">
+    <div>
+      <p class="eyebrow">NOEL SUPERMERCADOS</p>
+      <h1>Controle de Produção</h1>
+      <p class="subtitle">Conferência diária de produtos disponíveis no balcão</p>
+    </div>
+    <div class="date-badge" id="todayLabel"></div>
+  </header>
+
+  <main class="page-shell">
+    <section class="panel controls-panel">
+      <div class="field-group">
+        <label for="storeSelect">Loja</label>
+        <select id="storeSelect">
+          <option value="01">Loja 01</option>
+          <option value="02" selected>Loja 02</option>
+          <option value="03">Loja 03</option>
+          <option value="04">Loja 04</option>
+        </select>
+      </div>
+      <div class="field-group grow">
+        <label for="searchInput">Pesquisar produto</label>
+        <input id="searchInput" type="search" placeholder="Ex.: brownie, pão de queijo, pizza..." autocomplete="off" />
+      </div>
+      <button id="clearButton" class="secondary-button" type="button">Limpar seleção</button>
+    </section>
+
+    <section class="stats-grid">
+      <article class="stat-card">
+        <span>Produtos marcados</span>
+        <strong id="selectedCount">0</strong>
+      </article>
+      <article class="stat-card">
+        <span>Total de unidades</span>
+        <strong id="unitsCount">0</strong>
+      </article>
+      <article class="stat-card">
+        <span>Categorias</span>
+        <strong id="categoryCount">0</strong>
+      </article>
+    </section>
+
+    <div class="content-grid">
+      <section class="panel catalog-panel">
+        <div class="section-heading">
+          <div>
+            <p class="eyebrow">CHECKLIST</p>
+            <h2>Produtos disponíveis</h2>
+          </div>
+          <span class="hint">Marque o item e informe a quantidade se quiser.</span>
+        </div>
+        <div id="categoryFilters" class="chips"></div>
+        <div id="productList" class="product-list"></div>
+      </section>
+
+      <aside class="panel summary-panel">
+        <div class="section-heading compact">
+          <div>
+            <p class="eyebrow">RELATÓRIO</p>
+            <h2>Resumo da conferência</h2>
+          </div>
+        </div>
+        <div id="summaryEmpty" class="empty-state">Nenhum produto selecionado ainda.</div>
+        <div id="summaryList" class="summary-list"></div>
+        <textarea id="reportPreview" aria-label="Prévia do relatório" readonly></textarea>
+        <div class="action-stack">
+          <button id="saveButton" class="secondary-button full" type="button">Salvar conferência</button>
+          <button id="copyButton" class="primary-button full" type="button">Copiar relatório</button>
+          <button id="whatsappButton" class="whatsapp-button full" type="button">Enviar pelo WhatsApp</button>
+        </div>
+        <p class="saved-message" id="savedMessage" role="status"></p>
+      </aside>
+    </div>
+
+    <section class="panel history-panel">
+      <div class="section-heading">
+        <div>
+          <p class="eyebrow">HISTÓRICO</p>
+          <h2>Últimas conferências salvas</h2>
+        </div>
+      </div>
+      <div id="historyList" class="history-list"></div>
+    </section>
+  </main>
+
+  <script src="app.js"></script>
+</body>
+</html>
