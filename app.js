@@ -75,9 +75,10 @@ function normalize(text) {
   return text.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
 }
 
+const categoryIcons = ["▦","🧁","🥟","🍮","🥖","🌿","🥩","🍕"];
 function renderFilters() {
   const categories = ["Todos", ...Object.keys(catalog)];
-  els.categoryFilters.innerHTML = categories.map(cat => `<button class="chip ${state.category === cat ? "active" : ""}" data-category="${cat}">${cat}</button>`).join("");
+  els.categoryFilters.innerHTML = categories.map((cat, i) => `<button class="chip ${state.category === cat ? "active" : ""}" data-category="${cat}"><span class="chip-icon" aria-hidden="true">${categoryIcons[i]}</span> ${cat}</button>`).join("");
   els.categoryFilters.querySelectorAll(".chip").forEach(btn => btn.addEventListener("click", () => {
     state.category = btn.dataset.category;
     renderFilters();
