@@ -21,9 +21,10 @@
   </header>
 
   <details class="panel" id="syncPanel" style="margin:12px auto;max-width:1280px;padding:12px">
-    <summary>☁ Conta, backup e sincronização</summary>
+    <summary>☁ Aparelho, backup e sincronização</summary>
     <p id="syncMessage" role="status"></p>
-    <form id="loginForm"><label>E-mail <input name="email" type="email" autocomplete="username" required></label> <label>Senha <input name="password" type="password" autocomplete="current-password" required></label> <button type="submit">Entrar</button></form>
+    <p>O acesso é automático neste aparelho, sem e-mail ou senha. No primeiro uso, o responsável precisa autorizar o código abaixo no Firebase.</p>
+    <p id="deviceIdentity" style="overflow-wrap:anywhere"></p>
     <button id="backupButton" type="button">Baixar backup de recuperação</button>
     <button id="retrySync" type="button">Reconectar</button>
     <pre id="migrationPreview" hidden style="white-space:pre-wrap;max-height:280px;overflow:auto"></pre>

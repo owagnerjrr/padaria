@@ -11,7 +11,7 @@ const show=(text)=>{badge.textContent=text;};
 const api=window.noelSync;
 const original=api.read();
 let ready=false, initialized=false, remote={}, revisions={}, queue={}, processing=false, timer, failed=false, uid;
-let db, auth, sdk, root, collectionRef;
+let db, auth, authApi, sdk, root, collectionRef;
 let unsubscribers=[];
 const queueKey=()=>`noel-outbox-v1-${config.projectId}-${uid}`;
 function persistQueue(){localStorage.setItem(queueKey(),JSON.stringify(queue));}
@@ -94,9 +94,13 @@ document.getElementById('retrySync').onclick=()=>location.reload();
 
 async function begin(user){
   unsubscribers.forEach(fn=>fn());unsubscribers=[];ready=false;initialized=false;remote={};revisions={};queue={};lock(true);
-  document.getElementById('loginForm').hidden=!!user;
-  if(!user){show('🟡 Entre para sincronizar');message.textContent='Entre com a conta autorizada da Stefany. Os dados locais estão preservados.';return;}
+  if(!user){
+    show('🟡 Identificando aparelho');
+    try{await authApi.signInAnonymously(auth);}catch(e){fail(e);}
+    return;
+  }
   uid=user.uid;
+  document.getElementById('deviceIdentity').textContent='Código deste aparelho: '+uid;
   try{
     // Backup obrigatório antes de substituir a visualização local pela nuvem.
     if(!localStorage.getItem('noel-cloud-backup-'+config.projectId)){
@@ -144,7 +148,7 @@ migrate.onclick=async()=>{
   }catch(e){fail(e);migrate.disabled=false;}
 };
 
-if(!config.projectId){show('🟡 Modo local · nuvem não configurada');message.textContent='Firebase ainda não configurado. As funcionalidades locais continuam disponíveis.';document.getElementById('loginForm').hidden=true;}
+if(!config.projectId){show('🟡 Modo local · nuvem não configurada');message.textContent='Firebase ainda não configurado. As funcionalidades locais continuam disponíveis.';}
 else{
   lock(true);
   try{
@@ -152,7 +156,7 @@ else{
       import('https://www.gstatic.com/firebasejs/12.0.0/firebase-app.js'),
       import('https://www.gstatic.com/firebasejs/12.0.0/firebase-auth.js'),
       import('https://www.gstatic.com/firebasejs/12.0.0/firebase-firestore.js')]);
-    sdk=firestoreSdk;const app=initializeApp(config);auth=authSdk.getAuth(app);
+    sdk=firestoreSdk;authApi=authSdk;const app=initializeApp(config);auth=authSdk.getAuth(app);
     await authSdk.setPersistence(auth,authSdk.browserLocalPersistence);
     db=sdk.initializeFirestore(app,{localCache:sdk.persistentLocalCache({tabManager:sdk.persistentMultipleTabManager()})});
     root=sdk.doc(db,'noel/main');collectionRef=sdk.collection(root,'entries');
@@ -161,9 +165,6 @@ else{
     navigator.locks.request('noel-sync-'+config.projectId,{ifAvailable:true},async lockHandle=>{
       if(!lockHandle){show('⚠️ Sistema aberto em outra aba');message.textContent='Use a outra aba ou feche-a e recarregue esta.';return;}
       authSdk.onAuthStateChanged(auth,begin);
-      document.getElementById('loginForm').onsubmit=async event=>{
-        event.preventDefault();try{await authSdk.signInWithEmailAndPassword(auth,event.target.email.value,event.target.password.value);event.target.password.value='';}catch(e){fail(e);}
-      };
       await new Promise(()=>{});
     }).catch(fail);
   }catch(e){fail(e);}

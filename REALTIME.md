@@ -9,9 +9,11 @@ negadas. Nenhum dado operacional foi importado. App web `Controle de Produção 
 registrado; quatro variáveis públicas do SDK salvas exclusivamente em Preview na Vercel.
 Produção mantém o commit `caf6054`.
 
-O código e os testes locais não substituem testes reais do Firebase. A escolha do
-acesso protegido está pendente: o usuário pediu evitar conta, enquanto a missão
-original exige impedir acesso público. Não habilitar acesso irrestrito.
+O código e os testes locais não substituem testes reais do Firebase. Atendendo ao
+pedido de não usar conta com e-mail/senha, o app usa Firebase Authentication anônimo
+com autorização individual de aparelhos pelo administrador. Identificar o aparelho
+não concede acesso aos dados: seu UID precisa constar em `authorizedUsers`.
+Não habilitar acesso irrestrito. A autorização dos aparelhos reais está pendente.
 
 ## Estrutura
 
@@ -27,13 +29,16 @@ Quantidades e seleção têm registros separados. As quatro lojas são independe
 O catálogo é global. Exclusão usa marcador; o histórico tem ID estável e não é
 apagado ao salvar uma nova conferência. Não há exclusão física de registros pelo app.
 
-## Configurar após definir a autenticação
+## Configurar acesso sem e-mail nem senha
 
-1. Firebase → Authentication → ativar E-mail/Senha. Criar a conta autorizada;
-   o usuário deve digitar a senha diretamente no console, sem enviá-la no chat.
-2. Copiar o UID da conta. Criar `authorizedUsers/{UID}` no Firestore pelo console,
+1. Firebase → Authentication → Métodos de login → ativar **Anônimo**.
+   Não é necessário cadastrar e-mail, senha ou formulário de login.
+2. Abrir o sistema no aparelho que deseja autorizar. Expandir o painel de
+   sincronização e copiar o código (UID) exibido. Criar `authorizedUsers/{UID}` no Firestore pelo console,
    com um campo administrativo como `enabled: true`. A existência do documento
-   autoriza a conta; para revogar, remover o documento pelo console.
+   autoriza somente aquele aparelho; para revogar, remover o documento pelo console.
+   Repetir no celular, computador e tablet. Não autorizar códigos de desconhecidos.
+   Ao limpar os dados do navegador ou trocar de perfil, será necessária nova autorização.
 3. Registrar um app Web neste projeto e obter a configuração pública do SDK.
 4. Authentication → Configurações → Domínios autorizados: adicionar
    `padaria-kappa-six.vercel.app` e o domínio exato do preview usado nos testes.
@@ -102,7 +107,7 @@ Executado: `node --test tests/*.test.mjs` (11 testes passaram),
 `git diff --check`.
 Os testes da fila usam um adaptador Firestore controlado, não um serviço real.
 Não executado: regras no emulador (instalação de dependências bloqueada por DNS),
-autenticação real, testes entre dispositivos e migração real.
+identificação anônima real, autorização dos aparelhos, testes entre dispositivos e migração real.
 
 Preview automático do commit inicial `acfa7b3` ficou Ready na Vercel:
 https://padaria-r11a5ihqt-wagners-projects-6386cb6e.vercel.app/
@@ -114,7 +119,8 @@ retornou 403 para o escopo; a configuração foi feita pelo dashboard autenticad
 
 Antes do merge, testar em contextos independentes de celular e computador:
 
-- Login permitido somente ao UID autorizado; leitura/gravação anônima e conta não autorizada negadas.
+- Identificação automática e acesso somente ao UID autorizado; cliente sem autenticação
+  e aparelho com autenticação anônima mas sem autorização devem ter leitura/gravação negadas.
 - Quantidade sem marcação, desmarcação preservando quantidade, seleção e limpeza.
 - Lojas 01 a 04 independentes, catálogo compartilhado, adição e exclusão.
 - Excel com números e texto, prévia, cancelamento, confirmação e sincronização.
