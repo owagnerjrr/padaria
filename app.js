@@ -48,7 +48,14 @@ const els = {
   whatsappButton: document.getElementById("whatsappButton"),
   savedMessage: document.getElementById("savedMessage"),
   historyList: document.getElementById("historyList"),
-  onlySelected: document.getElementById("onlySelected")
+  onlySelected: document.getElementById("onlySelected"),
+  excelFile: document.getElementById("excelFile"),
+  importStatus: document.getElementById("importStatus"),
+  importPreview: document.getElementById("importPreview"),
+  importResults: document.getElementById("importResults"),
+  replaceImport: document.getElementById("replaceImport"),
+  confirmImport: document.getElementById("confirmImport"),
+  cancelImport: document.getElementById("cancelImport")
 };
 
 // Migrate the existing draft to the current store without losing selections.
@@ -241,3 +248,96 @@ renderFilters();
 renderProducts();
 renderSummary();
 renderHistory();
+
+let pendingImport = null;
+function parseAmount(value) {
+  if (typeof value === "number") return Number.isFinite(value) && value > 0 ? value : null;
+  if (typeof value !== "string") return null;
+  const raw = value.trim();
+  if (!/^\\d+(?:[.,]\\d+)?$/.test(raw)) return null;
+  const n = Number(raw.replace(",", "."));
+  return Number.isFinite(n) && n > 0 ? n : null;
+}
+function parseExcelRows(workbook) {
+  const lookup = new Map();
+  Object.entries(catalog).forEach(([category,names]) => names.forEach(name => {
+    const normalized = normalize(name).replace(/[^a-z0-9]/g,"");
+    const found = lookup.get(normalized) || [];
+    found.push({category,name,key:keyFor(category,name)});
+    lookup.set(normalized,found);
+  }));
+  const found = new Map(), warnings = [], ambiguous = [];
+  for (const sheetName of workbook.SheetNames) {
+    const sheet = workbook.Sheets[sheetName];
+    const rows = XLSX.utils.sheet_to_json(sheet,{header:1,defval:"",raw:true});
+    for (let ri=0;ri<rows.length;ri++) {
+      const row=rows[ri];
+      for (let ci=0;ci<row.length;ci++) {
+        if(typeof row[ci]!=="string") continue;
+        const token=normalize(row[ci].trim()).replace(/[^a-z0-9]/g,"");
+        const candidates=lookup.get(token);
+        if(!candidates) continue;
+        if(candidates.length!==1){ambiguous.push(sheetName+" linha "+(ri+1)+": "+row[ci]);continue;}
+        // Quantity must be in the immediately adjacent column, or under an explicit QTD/QUANTIDADE header.
+        let value=parseAmount(row[ci+1]);
+        if(value===null) {
+          for(let header=ri-1;header>=Math.max(0,ri-5);header--) {
+            for(let col=ci+1;col<Math.min(row.length,ci+5);col++){
+              if(/^(qtd|quantidade|estoque|disponivel)$/i.test(normalize(String(rows[header]?.[col]||"")).trim())){
+                value=parseAmount(row[col]);break;
+              }
+            }
+            if(value!==null)break;
+          }
+        }
+        if(value===null){warnings.push(sheetName+" linha "+(ri+1)+": "+row[ci]);continue;}
+        const item=candidates[0];
+        if(found.has(item.key)) warnings.push("Produto repetido: "+item.name+" ("+sheetName+", linha "+(ri+1)+")");
+        else found.set(item.key,{...item,qty:String(value)});
+      }
+    }
+  }
+  return {items:[...found.values()],warnings,ambiguous};
+}
+function closeImport() {
+  pendingImport=null; els.importPreview.hidden=true; els.excelFile.value="";
+}
+els.excelFile.addEventListener("change",async e=>{
+  closeImport();
+  const file=e.target.files?.[0];
+  if(!file)return;
+  els.importStatus.textContent="Lendo planilha...";
+  try {
+    if(typeof XLSX==="undefined")throw new Error("Biblioteca Excel indisponível. Verifique a conexão.");
+    if(file.size>25*1024*1024)throw new Error("Arquivo maior que 25 MB. Exporte somente a aba de conferência.");
+    const wb=XLSX.read(await file.arrayBuffer(),{type:"array"});
+    const result=parseExcelRows(wb);
+    pendingImport={...result,store:state.store};
+    els.importResults.replaceChildren();
+    const p=document.createElement("p");
+    p.textContent=result.items.length+" produtos reconhecidos com quantidade maior que zero. "+result.warnings.length+" linhas sem quantidade válida ou repetidas; "+result.ambiguous.length+" nomes ambíguos.";
+    els.importResults.append(p);
+    const list=document.createElement("div");list.className="import-list";
+    result.items.forEach(item=>{const line=document.createElement("div");line.textContent=item.name+" — "+item.qty+" "+itemUnit(item);list.append(line);});
+    els.importResults.append(list);
+    if(result.warnings.length||result.ambiguous.length){
+      const warn=document.createElement("details");const summary=document.createElement("summary");
+      summary.textContent="Ver itens que precisam de revisão";warn.append(summary);
+      const lines=document.createElement("p");lines.textContent=[...result.warnings,...result.ambiguous].slice(0,100).join(" | ");
+      warn.append(lines);els.importResults.append(warn);
+    }
+    els.importPreview.hidden=!result.items.length;
+    els.importStatus.textContent=result.items.length?"Confira os itens abaixo antes de importar.":"Nenhuma quantidade positiva foi encontrada ao lado de um produto cadastrado. Nada foi alterado.";
+  } catch(error) {els.importStatus.textContent="Não foi possível ler: "+error.message;}
+});
+els.confirmImport.addEventListener("click",()=>{
+  if(!pendingImport||pendingImport.store!==state.store){els.importStatus.textContent="A loja foi alterada. Selecione novamente o arquivo.";return;}
+  if(!pendingImport.items.length)return;
+  if(els.replaceImport.checked&&!confirm("Substituir todas as marcações atuais da Loja "+state.store+"?"))return;
+  const next=els.replaceImport.checked?{}:{...state.selected};
+  pendingImport.items.forEach(item=>next[item.key]={category:item.category,name:item.name,qty:item.qty});
+  state.selected=next;persistCurrent();renderProducts();renderSummary();
+  els.importStatus.textContent="Importação concluída na Loja "+state.store+". Confira e salve a conferência.";
+  closeImport();
+});
+els.cancelImport.addEventListener("click",()=>{closeImport();els.importStatus.textContent="Importação cancelada.";});
