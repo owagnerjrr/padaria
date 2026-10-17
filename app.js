@@ -160,7 +160,7 @@ function refreshCatalog() { refreshCategoryOptions();renderFilters();renderProdu
 refreshCategoryOptions();
 document.getElementById("createCategoryButton").addEventListener("click",()=>{
   const field=document.getElementById("newCategoryName");
-  const name=field.value.trim().replace(/\\s+/g," ");
+  const name=field.value.trim().replace(/\s+/g," ");
   if(!name||name.length>50||/[<>|]/.test(name)){manage.message.textContent="Informe uma categoria válida (até 50 caracteres).";return;}
   const existing=Object.keys(catalog).find(category=>normalize(category)===normalize(name));
   if(existing){manage.category.value=existing;manage.message.textContent="Esta categoria já existe.";return;}
@@ -170,7 +170,7 @@ document.getElementById("createCategoryButton").addEventListener("click",()=>{
 });
 manage.form.addEventListener("submit",event=>{
   event.preventDefault();
-  const name=manage.name.value.trim().replace(/\\s+/g," ");
+  const name=manage.name.value.trim().replace(/\s+/g," ");
   const category=manage.category.value;
   if(!name || !catalog[category])return;
   const duplicate=Object.entries(catalog).some(([cat,names])=>names.some(x=>normalize(x)===normalize(name)));
