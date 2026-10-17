@@ -366,24 +366,29 @@ els.clearButton.addEventListener("click", () => {
   }
 });
 
-// Zera os valores imediatamente, inclusive no PWA. Não depende de confirm() nativo.
+// Limpa quantidades de todas as lojas e os códigos globais dos produtos.
 function clearAllQuantitiesForStore() {
-  const store=state.store;
-  const keys=new Set([...Object.keys(state.quantities),...Object.keys(state.selected)]);
-  const changed=[...keys].filter(key=>String(state.quantities[key] ?? state.selected[key]?.qty ?? "").trim()!=="" && Number(state.quantities[key] ?? state.selected[key]?.qty)!==0);
-  if(!changed.length){
-    els.savedMessage.textContent="Nenhuma quantidade preenchida na Loja "+store+". Os números exibidos em Código são códigos dos produtos e não serão apagados.";
-    els.clearQuantitiesButton.textContent="✓ Quantidades já zeradas (códigos mantidos)";
-    setTimeout(()=>els.clearQuantitiesButton.textContent="⌫ Zerar quantidades",2500);
-    return;
+  const stores=["01","02","03","04"];
+  const count=stores.reduce((total,store)=>total+Object.values(JSON.parse(localStorage.getItem("noel-quantities-"+store)||"{}")).filter(value=>String(value??"").trim()!==""&&Number(value)!==0).length,0);
+  const codes=Object.keys(productCodes).length;
+  if(!count&&!codes){els.savedMessage.textContent="As quatro lojas já estão zeradas.";return;}
+  if(!confirm("Apagar TODAS as quantidades das quatro lojas e TODOS os códigos dos produtos? Os produtos marcados serão mantidos."))return;
+  for(const store of stores){
+    const selected=JSON.parse(localStorage.getItem("noel-current-"+store)||"{}");
+    const quantities=JSON.parse(localStorage.getItem("noel-quantities-"+store)||"{}");
+    for(const key of new Set([...Object.keys(quantities),...Object.keys(selected)]))quantities[key]="0";
+    for(const item of Object.values(selected))item.qty="0";
+    localStorage.setItem("noel-quantities-"+store,JSON.stringify(quantities));
+    localStorage.setItem("noel-current-"+store,JSON.stringify(selected));
+    if(store===state.store){state.quantities=quantities;state.selected=selected;}
   }
-  for(const key of keys){if(String(state.quantities[key] ?? state.selected[key]?.qty ?? "").trim()!=="")state.quantities[key]="0";}
-  Object.values(state.selected).forEach(item=>{if(String(item.qty ?? "").trim()!=="")item.qty="0";});
-  persistCurrent();
+  for(const key of Object.keys(productCodes))delete productCodes[key];
+  localStorage.setItem("noel-product-codes",JSON.stringify(productCodes));
+  window.noelSync?.onChange?.();
   renderProducts();renderSummary();
-  els.clearQuantitiesButton.textContent="✓ "+changed.length+" quantidades zeradas";
-  els.savedMessage.textContent=changed.length+" quantidades da Loja "+store+" zeradas. Códigos preservados. Aguarde o status Sincronizado.";
-  setTimeout(()=>els.clearQuantitiesButton.textContent="⌫ Zerar quantidades",3500);
+  els.clearQuantitiesButton.textContent="✓ Tudo zerado";
+  els.savedMessage.textContent="Quantidades e códigos das quatro lojas zerados. Aguarde o status Sincronizado.";
+  setTimeout(()=>els.clearQuantitiesButton.textContent="⌫ Zerar tudo (4 lojas)",3500);
 }
 els.clearQuantitiesButton.addEventListener("click",clearAllQuantitiesForStore);
 
