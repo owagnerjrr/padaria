@@ -1,0 +1,20 @@
+{
+  "id": "/",
+  "name": "Noel Supermercados — Controle de Produção",
+  "short_name": "Produção Noel",
+  "description": "Controle de produção e conferência das quatro lojas Noel",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#1761a0",
+  "lang": "pt-BR",
+  "icons": [
+    {
+      "src": "/assets/app-icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
