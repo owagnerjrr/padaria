@@ -17,9 +17,10 @@ export function validateOperation(op){
   let parts;try{parts=JSON.parse(op.key);}catch{throw new HttpError(400,'Chave inválida');}
   if(!Array.isArray(parts)||parts.length!==3||JSON.stringify(parts)!==op.key)throw new HttpError(400,'Chave inválida');
   const [kind,store,item]=parts;
-  if(!['quantity','selected','catalog','history'].includes(kind)||!(kind==='catalog'?store==='all':stores.has(store)))throw new HttpError(400,'Loja ou campo inválido');
+  if(!['quantity','selected','catalog','code','history'].includes(kind)||!((kind==='catalog'||kind==='code')?store==='all':stores.has(store)))throw new HttpError(400,'Loja ou campo inválido');
   if(kind!=='history')product(item);
   if(kind==='quantity'&&op.value!==null&&!(typeof op.value==='string'&&op.value.length<=24&&(op.value===''||/^\d+(?:[.,]\d+)?$/.test(op.value))&&Number(op.value.replace(',','.'))<=1000000))throw new HttpError(400,'Quantidade inválida');
+  if(kind==='code'&&op.value!==null&&!(typeof op.value==='string'&&op.value.length>0&&op.value.length<=32&&/^[A-Za-z0-9._\/-]+$/.test(op.value)))throw new HttpError(400,'Código inválido');
   if(kind==='selected'&&![true,null].includes(op.value))throw new HttpError(400,'Seleção inválida');
   if(kind==='catalog'&&![true,false,null].includes(op.value))throw new HttpError(400,'Catálogo inválido');
   if(kind==='history'){
