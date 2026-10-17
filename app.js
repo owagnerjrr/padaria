@@ -35,6 +35,8 @@ function readCatalogEdits() {
   catch { return {added:[],removed:[]}; }
 }
 const catalogEdits = readCatalogEdits();
+const productCodes = JSON.parse(localStorage.getItem("noel-product-codes") || "{}");
+function saveProductCodes(){localStorage.setItem("noel-product-codes",JSON.stringify(productCodes));window.noelSync?.onChange?.();}
 function applyCatalogEdits() {
   Object.keys(catalog).forEach(category => {
     catalog[category] = baseCatalog[category].filter(name => !catalogEdits.removed.some(item => item.category === category && item.name === name));
@@ -159,7 +161,7 @@ function renderManageResults() {
         localStorage.setItem(`noel-current-${store}`,JSON.stringify(selected));
         localStorage.setItem(`noel-quantities-${store}`,JSON.stringify(quantities));
       }
-      delete state.selected[key];delete state.quantities[key];
+      delete state.selected[key];delete state.quantities[key];delete productCodes[key];saveProductCodes();
       saveCatalogEdits();manage.message.textContent="Produto excluído do catálogo.";refreshCatalog();
     });
     row.append(label,button);manage.results.append(row);
@@ -207,6 +209,7 @@ function renderProducts() {
       return `<div class="product-row ${checked ? "selected" : ""}">
         <input type="checkbox" aria-label="Selecionar ${escapeHTML(name)}" data-key="${encodeURIComponent(key)}" ${checked ? "checked" : ""} />
         <span class="product-name">${escapeHTML(name)}</span>
+        <span class="code-wrap"><input class="code-input" aria-label="Código de ${escapeHTML(name)}" data-code-key="${encodeURIComponent(key)}" type="text" inputmode="numeric" maxlength="32" placeholder="Código" value="${escapeHTML(productCodes[key] || "")}" /></span>
         <span class="qty-wrap">
           <input class="qty-input" aria-label="Quantidade de ${escapeHTML(name)}" data-qty-key="${encodeURIComponent(key)}" type="number" min="0" step="any" inputmode="decimal" placeholder="Qtd." value="${safeQty}" />
           <span class="qty-label">${unit}</span>
@@ -230,6 +233,12 @@ function renderProducts() {
     renderSummary();
   }));
 
+  els.productList.querySelectorAll(".code-input").forEach(input => input.addEventListener("change", event => {
+    const key=decodeURIComponent(event.target.dataset.codeKey);
+    const value=event.target.value.trim();
+    if(value)productCodes[key]=value;else delete productCodes[key];
+    saveProductCodes();renderSummary();
+  }));
   els.productList.querySelectorAll(".qty-input").forEach(input => input.addEventListener("input", event => {
     const key = decodeURIComponent(event.target.dataset.qtyKey);
     state.quantities[key] = event.target.value;
@@ -258,7 +267,8 @@ function buildReport() {
       lines.push(`*${currentCategory.toUpperCase()}*`);
     }
     const qty = String(item.qty).trim();
-    lines.push(`• ${item.name}${qty ? ` — ${qty} un.` : ""}`);
+    const code=productCodes[keyFor(item.category,item.name)];
+    lines.push(`• ${item.name}${code ? ` (Cód. ${code})` : ""}${qty ? ` — ${qty} ${itemUnit(item)}` : ""}`);
   });
 
   const totalUnits = items.filter(item => itemUnit(item) === "un.").reduce((sum, item) => sum + quantity(item), 0);
@@ -272,7 +282,7 @@ function buildReport() {
 function renderSummary() {
   const items = selectedItems();
   els.summaryEmpty.style.display = items.length ? "none" : "block";
-  els.summaryList.innerHTML = items.map(item => `<div class="summary-item"><strong>${escapeHTML(item.name)}</strong><span>${escapeHTML(item.category)}${item.qty ? ` · ${escapeHTML(item.qty)} un.` : ""}</span></div>`).join("");
+  els.summaryList.innerHTML = items.map(item => `<div class="summary-item"><strong>${escapeHTML(item.name)}</strong><span>${escapeHTML(item.category)}${productCodes[keyFor(item.category,item.name)] ? ` · Cód. ${escapeHTML(productCodes[keyFor(item.category,item.name)])}` : ""}${item.qty ? ` · ${escapeHTML(item.qty)} un.` : ""}</span></div>`).join("");
   els.reportPreview.value = buildReport();
   els.selectedCount.textContent = items.length;
   els.unitsCount.textContent = items.filter(item => itemUnit(item) === "un.").reduce((sum, item) => sum + quantity(item), 0);
@@ -373,15 +383,15 @@ function createExcelFile() {
     ["Loja", state.store],
     ["Data", formattedDate],
     [],
-    ["Categoria", "Produto", "Quantidade", "Unidade"]
+    ["Categoria", "Produto", "Código", "Quantidade", "Unidade"]
   ];
   items.forEach(item => {
     const raw = String(item.qty ?? "").trim().replace(",", ".");
-    rows.push([item.category,item.name,raw !== "" && Number.isFinite(Number(raw)) ? Number(raw) : "",itemUnit(item)]);
+    rows.push([item.category,item.name,productCodes[keyFor(item.category,item.name)] || "",raw !== "" && Number.isFinite(Number(raw)) ? Number(raw) : "",itemUnit(item)]);
   });
   rows.push([],["Total de produtos",items.length]);
   const ws = XLSX.utils.aoa_to_sheet(rows);
-  ws["!cols"] = [{wch:20},{wch:48},{wch:16},{wch:12}];
+  ws["!cols"] = [{wch:20},{wch:48},{wch:20},{wch:16},{wch:12}];
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb,ws,"Conferência");
   const bytes = XLSX.write(wb,{bookType:"xlsx",type:"array"});
@@ -529,7 +539,7 @@ window.noelSync = {
     history.forEach((item,index)=>{if(!item.id)item.id='legacy-'+index+'-'+encodeURIComponent(item.store+'-'+item.date);});
     return {stores:Object.fromEntries(['01','02','03','04'].map(store=>[store,{
       selected:JSON.parse(localStorage.getItem(`noel-current-${store}`)||'{}'),quantities:loadQuantities(store)
-    }])),catalog:JSON.parse(localStorage.getItem('noel-catalog-edits')||'{"added":[],"removed":[]}'),history};
+    }])),catalog:JSON.parse(localStorage.getItem('noel-catalog-edits')||'{"added":[],"removed":[]}'),codes:{...productCodes},history};
   },
   apply(data) {
     for(const [store,values] of Object.entries(data.stores)){
@@ -537,6 +547,8 @@ window.noelSync = {
       localStorage.setItem(`noel-quantities-${store}`,JSON.stringify(values.quantities));
     }
     localStorage.setItem('noel-catalog-edits',JSON.stringify(data.catalog));
+    Object.keys(productCodes).forEach(key=>delete productCodes[key]);Object.assign(productCodes,data.codes||{});
+    localStorage.setItem('noel-product-codes',JSON.stringify(productCodes));
     localStorage.setItem('noel-history',JSON.stringify(data.history));
     catalogEdits.added=data.catalog.added;catalogEdits.removed=data.catalog.removed;applyCatalogEdits();
     state.selected=data.stores[state.store].selected;state.quantities=data.stores[state.store].quantities;
