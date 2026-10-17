@@ -31,14 +31,16 @@ const catalog = {
 // Personalizações locais do catálogo, preservando a lista original.
 const baseCatalog = JSON.parse(JSON.stringify(catalog));
 function readCatalogEdits() {
-  try { return JSON.parse(localStorage.getItem("noel-catalog-edits") || '{"added":[],"removed":[]}'); }
-  catch { return {added:[],removed:[]}; }
+  try { const edits=JSON.parse(localStorage.getItem("noel-catalog-edits") || '{"added":[],"removed":[]}');return {...edits,categories:edits.categories||[]}; }
+  catch { return {added:[],removed:[],categories:[]}; }
 }
 const catalogEdits = readCatalogEdits();
 const productCodes = JSON.parse(localStorage.getItem("noel-product-codes") || "{}");
 function saveProductCodes(){localStorage.setItem("noel-product-codes",JSON.stringify(productCodes));window.noelSync?.onChange?.();}
 function applyCatalogEdits() {
-  Object.keys(catalog).forEach(category => {
+  for(const category of Object.keys(catalog))if(!baseCatalog[category])delete catalog[category];
+  for(const category of catalogEdits.categories||[])if(!catalog[category])catalog[category]=[];
+  Object.keys(baseCatalog).forEach(category => {
     catalog[category] = baseCatalog[category].filter(name => !catalogEdits.removed.some(item => item.category === category && item.name === name));
   });
   catalogEdits.added.forEach(item => {
@@ -145,7 +147,27 @@ function suggestCategory(name) {
 }
 manage.name.addEventListener("input",()=>{manage.category.value=suggestCategory(manage.name.value);});
 setupGroupIcons();
-function refreshCatalog() { renderFilters();renderProducts();renderSummary();renderManageResults(); }
+function refreshCategoryOptions(){
+  const previous=manage.category.value;
+  manage.category.innerHTML=Object.keys(catalog).map(category=>`<option value="${escapeHTML(category)}">${escapeHTML(category)}</option>`).join("");
+  if(catalog[previous])manage.category.value=previous;
+  const previousIcon=iconCategorySelect.value;
+  iconCategorySelect.innerHTML=Object.keys(catalog).map(category=>`<option value="${escapeHTML(category)}">${escapeHTML(category)}</option>`).join("");
+  if(catalog[previousIcon])iconCategorySelect.value=previousIcon;
+  iconCategorySelect.dispatchEvent(new Event("change"));
+}
+function refreshCatalog() { refreshCategoryOptions();renderFilters();renderProducts();renderSummary();renderManageResults(); }
+refreshCategoryOptions();
+document.getElementById("createCategoryButton").addEventListener("click",()=>{
+  const field=document.getElementById("newCategoryName");
+  const name=field.value.trim().replace(/\\s+/g," ");
+  if(!name||name.length>50||/[<>|]/.test(name)){manage.message.textContent="Informe uma categoria válida (até 50 caracteres).";return;}
+  const existing=Object.keys(catalog).find(category=>normalize(category)===normalize(name));
+  if(existing){manage.category.value=existing;manage.message.textContent="Esta categoria já existe.";return;}
+  catalogEdits.categories ||= [];catalogEdits.categories.push(name);
+  saveCatalogEdits();refreshCatalog();manage.category.value=name;field.value="";
+  manage.message.textContent="Categoria "+name+" criada e disponível nas quatro lojas.";
+});
 manage.form.addEventListener("submit",event=>{
   event.preventDefault();
   const name=manage.name.value.trim().replace(/\\s+/g," ");
@@ -569,7 +591,7 @@ window.noelSync = {
     Object.keys(productCodes).forEach(key=>delete productCodes[key]);Object.assign(productCodes,data.codes||{});
     localStorage.setItem('noel-product-codes',JSON.stringify(productCodes));
     localStorage.setItem('noel-history',JSON.stringify(data.history));
-    catalogEdits.added=data.catalog.added;catalogEdits.removed=data.catalog.removed;applyCatalogEdits();
+    catalogEdits.added=data.catalog.added;catalogEdits.removed=data.catalog.removed;catalogEdits.categories=data.catalog.categories||[];catalogEdits.icons=data.catalog.icons||{};applyCatalogEdits();
     state.selected=data.stores[state.store].selected;state.quantities=data.stores[state.store].quantities;
     const focused=document.activeElement;
     const editing=focused?.dataset?.qtyKey;
