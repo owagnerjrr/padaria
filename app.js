@@ -250,8 +250,8 @@ function renderProducts() {
       return `<div class="product-row ${checked ? "selected" : ""}">
         <input type="checkbox" aria-label="Selecionar ${escapeHTML(name)}" data-key="${encodeURIComponent(key)}" ${checked ? "checked" : ""} />
         <span class="product-name">${escapeHTML(name)}</span>
-        <span class="code-wrap"><small class="field-caption">Código do produto</small><input class="code-input" aria-label="Código de ${escapeHTML(name)}" data-code-key="${encodeURIComponent(key)}" type="text" inputmode="numeric" maxlength="32" placeholder="Código" value="${escapeHTML(productCodes[key] || "")}" /></span>
-        <span class="qty-wrap"><small class="field-caption">Quantidade</small>
+        <span class="code-wrap"><input class="code-input" aria-label="Código de ${escapeHTML(name)}" data-code-key="${encodeURIComponent(key)}" type="text" inputmode="numeric" maxlength="32" placeholder="Código" value="${escapeHTML(productCodes[key] || "")}" /></span>
+        <span class="qty-wrap">
           <input class="qty-input" aria-label="Quantidade de ${escapeHTML(name)}" data-qty-key="${encodeURIComponent(key)}" type="number" min="0" step="any" inputmode="decimal" placeholder="Qtd." value="${safeQty}" />
           <span class="qty-label">${unit}</span>
         </span>
@@ -366,29 +366,23 @@ els.clearButton.addEventListener("click", () => {
   }
 });
 
-// Limpa quantidades de todas as lojas e os códigos globais dos produtos.
+// Zera somente a loja selecionada. Códigos são compartilhados entre lojas e permanecem intactos.
 function clearAllQuantitiesForStore() {
-  const stores=["01","02","03","04"];
-  const count=stores.reduce((total,store)=>total+Object.values(JSON.parse(localStorage.getItem("noel-quantities-"+store)||"{}")).filter(value=>String(value??"").trim()!==""&&Number(value)!==0).length,0);
-  const codes=Object.keys(productCodes).length;
-  if(!count&&!codes){els.savedMessage.textContent="As quatro lojas já estão zeradas.";return;}
-  if(!confirm("Apagar TODAS as quantidades das quatro lojas e TODOS os códigos dos produtos? Os produtos marcados serão mantidos."))return;
-  for(const store of stores){
-    const selected=JSON.parse(localStorage.getItem("noel-current-"+store)||"{}");
-    const quantities=JSON.parse(localStorage.getItem("noel-quantities-"+store)||"{}");
-    for(const key of new Set([...Object.keys(quantities),...Object.keys(selected)]))quantities[key]="0";
-    for(const item of Object.values(selected))item.qty="0";
-    localStorage.setItem("noel-quantities-"+store,JSON.stringify(quantities));
-    localStorage.setItem("noel-current-"+store,JSON.stringify(selected));
-    if(store===state.store){state.quantities=quantities;state.selected=selected;}
+  const store=state.store;
+  const keys=new Set([...Object.keys(state.quantities),...Object.keys(state.selected)]);
+  const filled=[...keys].filter(key=>String(state.quantities[key] ?? state.selected[key]?.qty ?? "").trim()!=="" && Number(state.quantities[key] ?? state.selected[key]?.qty)!==0);
+  if(!filled.length){
+    els.savedMessage.textContent="Não há quantidades preenchidas para zerar na Loja "+store+".";
+    return;
   }
-  for(const key of Object.keys(productCodes))delete productCodes[key];
-  localStorage.setItem("noel-product-codes",JSON.stringify(productCodes));
-  window.noelSync?.onChange?.();
+  if(!confirm("Zerar somente as quantidades da Loja "+store+"? As outras lojas e os códigos dos produtos serão mantidos."))return;
+  for(const key of keys)if(String(state.quantities[key] ?? state.selected[key]?.qty ?? "").trim()!=="")state.quantities[key]="0";
+  for(const item of Object.values(state.selected))if(String(item.qty??"").trim()!=="")item.qty="0";
+  persistCurrent();
   renderProducts();renderSummary();
-  els.clearQuantitiesButton.textContent="✓ Tudo zerado";
-  els.savedMessage.textContent="Quantidades e códigos das quatro lojas zerados. Aguarde o status Sincronizado.";
-  setTimeout(()=>els.clearQuantitiesButton.textContent="⌫ Zerar tudo (4 lojas)",3500);
+  els.clearQuantitiesButton.textContent="✓ Loja "+store+" zerada";
+  els.savedMessage.textContent="Quantidades da Loja "+store+" zeradas. Outras lojas e códigos preservados. Aguarde a sincronização.";
+  setTimeout(()=>els.clearQuantitiesButton.textContent="⌫ Zerar quantidades",3000);
 }
 els.clearQuantitiesButton.addEventListener("click",clearAllQuantitiesForStore);
 
