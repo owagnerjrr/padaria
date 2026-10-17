@@ -12,7 +12,7 @@ function backup(download=true){
 const engine=new ApiSync({storage:localStorage,
   onUpdate(values,initialized){if(initialized){if(first){backup(false);first=false;}ui.apply(materialize(values,ui.baseCatalog));}},
   onStatus(state){
-    main.inert=!editor||!state.ready||!state.initialized;get('conflictButton').hidden=!state.conflicts.length;
+    main.inert=false;get('conflictButton').hidden=!state.conflicts.length;
     get('syncStatus').textContent=state.offline?'🔴 Sem conexão'+(state.pending?' · alterações pendentes':''):state.error?'⚠️ Erro de sincronização':state.conflicts.length?'⚠️ Conflito · revisar':state.pending?'🟡 Salvando alterações':state.initialized?'🟢 Sincronizado':'🟡 Aguardando nuvem';
     if(state.error)get('syncMessage').textContent=state.error+' Seus dados e alterações pendentes foram preservados.';
     else if(state.initialized)get('syncMessage').textContent=state.pending?'Alterações aguardando envio.':'Atualização automática a cada 5 segundos. Acesso direto pelo link, sem login.';
@@ -24,7 +24,7 @@ const engine=new ApiSync({storage:localStorage,
     }
   }
 });
-ui.onChange=()=>{try{if(editor){engine.capture(flatten(ui.read()));clearTimeout(timer);timer=setTimeout(()=>engine.flush(),650);}}catch(e){main.inert=true;get('syncStatus').textContent='⚠️ Erro de armazenamento';get('syncMessage').textContent=e.message;}};
+ui.onChange=()=>{try{if(editor){engine.capture(flatten(ui.read()));clearTimeout(timer);timer=setTimeout(()=>engine.flush(),650);}}catch(e){main.inert=false;get('syncStatus').textContent='⚠️ Erro de armazenamento';get('syncMessage').textContent=e.message;}};
 get('backupButton').onclick=()=>{try{backup();get('syncMessage').textContent='Backup preservado no navegador e enviado para download.';}catch(e){get('syncMessage').textContent=e.message;}};
 get('retrySync').onclick=async()=>{engine.retryAt=0;await engine.poll();await engine.flush();};
 get('migrateButton').onclick=async()=>{
@@ -55,4 +55,4 @@ async function start(){
   }
   await tick();
 }
-if(navigator.locks){navigator.locks.request('noel-api-editor',{ifAvailable:true},async lock=>{if(!lock){editor=false;main.inert=true;get('syncMessage').textContent='O sistema já está aberto em outra aba deste navegador. Use essa aba para editar.';return;}await start();await new Promise(()=>{});}).catch(error=>{get('syncMessage').textContent=error.message;});}else start();
+if(navigator.locks){navigator.locks.request('noel-api-editor',{ifAvailable:true},async lock=>{if(!lock){editor=false;main.inert=false;get('syncMessage').textContent='Outra aba está sincronizando. Você pode consultar os dados aqui; para salvar na nuvem, use a primeira aba.';return;}await start();await new Promise(()=>{});}).catch(error=>{get('syncMessage').textContent=error.message;});}else start();
