@@ -44,5 +44,15 @@ window.addEventListener('online',async()=>{await engine.poll();await engine.flus
 window.addEventListener('beforeunload',event=>{if(Object.keys(engine.queue).length){event.preventDefault();event.returnValue='Há alterações pendentes';}});
 document.addEventListener('visibilitychange',()=>{if(!document.hidden)engine.poll();});
 async function tick(){await engine.flush();await engine.poll();setTimeout(tick,document.hidden?30000:5000);}
-async function start(){engine.render();await tick();}
+async function start(){
+  engine.render();
+  await engine.poll();
+  // A instalação inicial é vazia: dados antigos eram somente testes.
+  // Nunca sobrescrever uma nuvem já inicializada.
+  if(engine.ready&&!engine.initialized&&engine.canInitialize){
+    try{await engine.initialize({});}
+    catch(error){get('syncMessage').textContent='Não foi possível iniciar a nuvem: '+error.message;}
+  }
+  await tick();
+}
 if(navigator.locks){navigator.locks.request('noel-api-editor',{ifAvailable:true},async lock=>{if(!lock){editor=false;main.inert=true;get('syncMessage').textContent='O sistema já está aberto em outra aba deste navegador. Use essa aba para editar.';return;}await start();await new Promise(()=>{});}).catch(error=>{get('syncMessage').textContent=error.message;});}else start();
