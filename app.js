@@ -366,23 +366,26 @@ els.clearButton.addEventListener("click", () => {
   }
 });
 
-els.clearQuantitiesButton.addEventListener("click", () => {
-  const store = state.store;
-  const keys = new Set([...Object.keys(state.quantities), ...Object.keys(state.selected)]);
-  const hasQuantities = [...keys].some(key => String(state.quantities[key] ?? state.selected[key]?.qty ?? "").trim() !== "" && Number(state.quantities[key] ?? state.selected[key]?.qty) !== 0);
-  if (!keys.size || !hasQuantities) {
-    els.savedMessage.textContent = "As quantidades da Loja " + store + " já estão zeradas.";
+// Zera os valores imediatamente, inclusive no PWA. Não depende de confirm() nativo.
+function clearAllQuantitiesForStore() {
+  const store=state.store;
+  const keys=new Set([...Object.keys(state.quantities),...Object.keys(state.selected)]);
+  const changed=[...keys].filter(key=>String(state.quantities[key] ?? state.selected[key]?.qty ?? "").trim()!=="" && Number(state.quantities[key] ?? state.selected[key]?.qty)!==0);
+  if(!changed.length){
+    els.savedMessage.textContent="As quantidades da Loja "+store+" já estão zeradas.";
+    els.clearQuantitiesButton.textContent="✓ Quantidades já zeradas";
+    setTimeout(()=>els.clearQuantitiesButton.textContent="⌫ Zerar quantidades",2500);
     return;
   }
-  if (!confirm("Zerar todas as quantidades da Loja " + store + "? Os produtos marcados serão mantidos.")) return;
-  // Registrar zero explicitamente: evita recuperar quantidades antigas na sincronização.
-  for (const key of keys) state.quantities[key] = "0";
-  Object.values(state.selected).forEach(item => { item.qty = "0"; });
+  for(const key of keys){if(String(state.quantities[key] ?? state.selected[key]?.qty ?? "").trim()!=="")state.quantities[key]="0";}
+  Object.values(state.selected).forEach(item=>{if(String(item.qty ?? "").trim()!=="")item.qty="0";});
   persistCurrent();
-  renderProducts();
-  renderSummary();
-  els.savedMessage.textContent = "Quantidades da Loja " + store + " zeradas. Aguardando sincronização com os outros aparelhos.";
-});
+  renderProducts();renderSummary();
+  els.clearQuantitiesButton.textContent="✓ "+changed.length+" quantidades zeradas";
+  els.savedMessage.textContent=changed.length+" quantidades da Loja "+store+" zeradas. Aguarde o status Sincronizado para confirmar o envio.";
+  setTimeout(()=>els.clearQuantitiesButton.textContent="⌫ Zerar quantidades",3500);
+}
+els.clearQuantitiesButton.addEventListener("click",clearAllQuantitiesForStore);
 
 els.saveButton.addEventListener("click", () => {
   const items = selectedItems();
