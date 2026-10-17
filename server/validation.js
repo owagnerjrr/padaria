@@ -2,13 +2,14 @@ export class HttpError extends Error {
   constructor(status,message){super(message);this.status=status;}
 }
 const categories=new Set(['Doces','Salgados','Sabores','Caseiros','Hortifrúti','Açougue','Pizzas']);
+const validCategory=value=>typeof value==='string'&&value.length>0&&value.length<=50&&!/[<>|\u0000-\u001f]/.test(value);
 const stores=new Set(['01','02','03','04']);
 const object=value=>value!==null&&typeof value==='object'&&!Array.isArray(value);
 const text=(value,max)=>typeof value==='string'&&value.length>0&&value.length<=max&&!/[\u0000-\u001f<>]/.test(value);
 function product(key){
   if(typeof key!=='string')throw new HttpError(400,'Produto inválido');
   const parts=key.split('|||');
-  if(parts.length!==2||!categories.has(parts[0])||!text(parts[1],120))throw new HttpError(400,'Produto inválido');
+  if(parts.length!==2||!validCategory(parts[0])||!text(parts[1],120))throw new HttpError(400,'Produto inválido');
   return parts;
 }
 export function validateOperation(op){
@@ -17,8 +18,11 @@ export function validateOperation(op){
   let parts;try{parts=JSON.parse(op.key);}catch{throw new HttpError(400,'Chave inválida');}
   if(!Array.isArray(parts)||parts.length!==3||JSON.stringify(parts)!==op.key)throw new HttpError(400,'Chave inválida');
   const [kind,store,item]=parts;
-  if(!['quantity','selected','catalog','code','history'].includes(kind)||!((kind==='catalog'||kind==='code')?store==='all':stores.has(store)))throw new HttpError(400,'Loja ou campo inválido');
-  if(kind!=='history')product(item);
+  if(!['quantity','selected','catalog','code','history','category','icon'].includes(kind)||!((['catalog','code','category','icon'].includes(kind))?store==='all':stores.has(store)))throw new HttpError(400,'Loja ou campo inválido');
+  if(kind==='category'||kind==='icon'){if(!validCategory(item))throw new HttpError(400,'Categoria inválida');}
+  else if(kind!=='history')product(item);
+  if(kind==='category'&&op.value!==true&&op.value!==null)throw new HttpError(400,'Categoria inválida');
+  if(kind==='icon'&&op.value!==null&&!(typeof op.value==='string'&&op.value.length>0&&op.value.length<=12&&!/[<>\u0000-\u001f]/.test(op.value)))throw new HttpError(400,'Ícone inválido');
   if(kind==='quantity'&&op.value!==null&&!(typeof op.value==='string'&&op.value.length<=24&&(op.value===''||/^\d+(?:[.,]\d+)?$/.test(op.value))&&Number(op.value.replace(',','.'))<=1000000))throw new HttpError(400,'Quantidade inválida');
   if(kind==='code'&&op.value!==null&&!(typeof op.value==='string'&&op.value.length>0&&op.value.length<=32&&/^[A-Za-z0-9._\/-]+$/.test(op.value)))throw new HttpError(400,'Código inválido');
   if(kind==='selected'&&![true,null].includes(op.value))throw new HttpError(400,'Seleção inválida');
