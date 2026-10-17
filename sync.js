@@ -1,171 +1,48 @@
-import config from './firebase-config.js';
-import {flatten,diff,materialize} from './sync-core.js';
-
-const badge=document.getElementById('syncStatus');
-const panel=document.getElementById('syncPanel');
-const message=document.getElementById('syncMessage');
-const preview=document.getElementById('migrationPreview');
-const migrate=document.getElementById('migrateButton');
-const conflictButton=document.getElementById('conflictButton');
-const show=(text)=>{badge.textContent=text;};
-const api=window.noelSync;
-const original=api.read();
-let ready=false, initialized=false, remote={}, revisions={}, queue={}, processing=false, timer, failed=false, uid;
-let db, auth, authApi, sdk, root, collectionRef;
-let unsubscribers=[];
-const queueKey=()=>`noel-outbox-v1-${config.projectId}-${config.workspace||'main'}-${uid}`;
-function persistQueue(){localStorage.setItem(queueKey(),JSON.stringify(queue));}
-function status(){
-  const conflicts=Object.values(queue).some(x=>x.conflict);
-  conflictButton.hidden=!conflicts;
-  show(failed?'⚠️ Erro de sincronização':!navigator.onLine?'🔴 Sem conexão'+(Object.keys(queue).length?' · alterações pendentes':''):conflicts?'⚠️ Conflito · revisar':Object.keys(queue).length?'🟡 Salvando alterações':ready&&initialized?'🟢 Sincronizado':'🟡 Aguardando nuvem');
+import {ApiSync} from './sync-client.js';
+import {flatten,materialize} from './sync-core.js';
+const ui=window.noelSync, original=ui.read();
+const get=id=>document.getElementById(id),main=document.querySelector('main');
+let editor=true,first=true,timer;
+function backup(download=true){
+  const saved={};for(let i=0;i<localStorage.length;i++){const key=localStorage.key(i);if(key.startsWith('noel-')&&!key.startsWith('noel-backup-'))saved[key]=localStorage.getItem(key);}
+  const data=JSON.stringify({version:2,createdAt:new Date().toISOString(),data:ui.read(),localStorage:saved},null,2);
+  localStorage.setItem('noel-backup-'+Date.now(),data);
+  if(download){const url=URL.createObjectURL(new Blob([data],{type:'application/json'}));const link=document.createElement('a');link.href=url;link.download='noel-backup-'+Date.now()+'.json';link.click();setTimeout(()=>URL.revokeObjectURL(url),2000);}
 }
-function lock(value){document.querySelector('main').inert=value;}
-function fail(error){failed=true;message.textContent='Não foi possível sincronizar: '+error.message+'. Os dados locais e a fila foram preservados.';status();}
-function id(key){return btoa(unescape(encodeURIComponent(key))).replaceAll('/','_').replaceAll('+','-').replaceAll('=','');}
-function merged(){const values={...remote};for(const op of Object.values(queue))values[op.key]=op.value;return values;}
-function repaint(){api.apply(materialize(merged(),api.baseCatalog));status();}
-function backup(){
-  const data={version:1,createdAt:new Date().toISOString(),data:api.read(),pending:queue,localStorage:{}};
-  for(let i=0;i<localStorage.length;i++){const key=localStorage.key(i);if(key.startsWith('noel-')&&!key.startsWith('noel-backup-'))data.localStorage[key]=localStorage.getItem(key);}
-  const serialized=JSON.stringify(data,null,2);
-  // Se não for possível persistir o backup, interromper a migração.
-  localStorage.setItem('noel-backup-'+Date.now(),serialized);
-  const url=URL.createObjectURL(new Blob([serialized],{type:'application/json'}));
-  const link=document.createElement('a');link.href=url;link.download='noel-backup-'+Date.now()+'.json';link.click();setTimeout(()=>URL.revokeObjectURL(url),2000);
-  return data;
-}
-document.getElementById('backupButton').onclick=()=>{try{backup();message.textContent='Backup salvo neste navegador e baixado.';}catch(e){fail(e);}};
-function capture(){
-  if(!ready||!initialized)return;
-  try{
-    for(const change of diff(merged(),flatten(api.read()))){
-      const previous=queue[change.key];
-      queue[change.key]={...change,base:previous?.base??revisions[change.key]??0,operation:crypto.randomUUID(),conflict:previous?.conflict||false};
+const engine=new ApiSync({storage:localStorage,
+  onUpdate(values,initialized){if(initialized){if(first){backup(false);first=false;}ui.apply(materialize(values,ui.baseCatalog));}},
+  onStatus(state){
+    main.inert=!editor||!state.ready||!state.initialized;get('conflictButton').hidden=!state.conflicts.length;
+    get('syncStatus').textContent=state.offline?'🔴 Sem conexão'+(state.pending?' · alterações pendentes':''):state.error?'⚠️ Erro de sincronização':state.conflicts.length?'⚠️ Conflito · revisar':state.pending?'🟡 Salvando alterações':state.initialized?'🟢 Sincronizado':'🟡 Aguardando nuvem';
+    if(state.error)get('syncMessage').textContent=state.error+' Seus dados e alterações pendentes foram preservados.';
+    else if(state.initialized)get('syncMessage').textContent=state.pending?'Alterações aguardando envio.':'Atualização automática a cada 5 segundos. Acesso direto pelo link, sem login.';
+    else if(state.ready){
+      get('migrationPreview').hidden=false;
+      get('migrationPreview').textContent=JSON.stringify({lojas:Object.fromEntries(Object.entries(original.stores).map(([s,v])=>[s,{quantidades:Object.keys(v.quantities).length,marcados:Object.keys(v.selected).length}])),catalogo:original.catalog,conferencias:original.history.length},null,2);
+      get('migrateButton').hidden=!engine.canInitialize;get('migrationConsent').hidden=!engine.canInitialize;
+      get('syncMessage').textContent=engine.canInitialize?'Nuvem vazia. Confira a prévia e confirme a importação somente no aparelho com os dados corretos.':'Nuvem aguardando importação inicial controlada. É necessário habilitá-la temporariamente no servidor.';
     }
-    persistQueue();status();clearTimeout(timer);timer=setTimeout(flush,650);
-  }catch(e){lock(true);fail(e);}
-}
-api.onChange=capture;
-async function flush(){
-  if(processing||!ready||!initialized||!navigator.onLine)return;
-  processing=true;
-  try{
-    for(const op of Object.values(queue)){
-      if(op.conflict)continue;
-      const ref=sdk.doc(collectionRef,id(op.key));
-      const result=await sdk.runTransaction(db,async tx=>{
-        const snap=await tx.get(ref), current=snap.data();
-        if(current?.operation===op.operation)return {revision:current.revision};
-        if((current?.revision??0)!==op.base)return {conflict:true,current};
-        tx.set(ref,{key:op.key,value:op.value,revision:op.base+1,updatedAt:sdk.serverTimestamp(),operation:op.operation});
-        return {revision:op.base+1};
-      });
-      if(result.conflict){
-        if(queue[op.key])queue[op.key].conflict=true;
-        message.textContent='Outro aparelho alterou o mesmo campo. Sua edição está preservada na fila. Baixe um backup e revise os conflitos.';
-        conflictButton.hidden=false;
-      }else{
-        remote[op.key]=op.value;revisions[op.key]=Math.max(revisions[op.key]||0,result.revision);
-        if(queue[op.key]?.operation===op.operation)delete queue[op.key];
-        else if(queue[op.key])queue[op.key].base=result.revision;
-      }
-      persistQueue();
-    }
-    failed=false;
-  }catch(e){fail(e);}finally{processing=false;status();}
-}
-conflictButton.onclick=()=>{
-  try{
-    backup();
-    for(const op of Object.values(queue).filter(x=>x.conflict)){
-      const [kind,store,key]=JSON.parse(op.key);
-      const useLocal=confirm(`Conflito: ${kind} · Loja ${store} · ${key}\nNuvem: ${JSON.stringify(remote[op.key])}\nSua edição: ${JSON.stringify(op.value)}\n\nOK: reenviar sua edição sobre a versão atual. Cancelar: usar a nuvem (sua edição permanece no backup).`);
-      if(useLocal){op.base=revisions[op.key]??0;op.operation=crypto.randomUUID();op.conflict=false;}
-      else delete queue[op.key];
-    }
-    persistQueue();conflictButton.hidden=true;repaint();flush();
-  }catch(e){fail(e);}
-};
-window.addEventListener('offline',status);
-window.addEventListener('online',()=>{status();flush();});
-window.addEventListener('beforeunload',event=>{if(Object.keys(queue).length){event.preventDefault();event.returnValue='Há alterações pendentes';}});
-document.getElementById('retrySync').onclick=()=>location.reload();
-
-async function begin(user){
-  unsubscribers.forEach(fn=>fn());unsubscribers=[];ready=false;initialized=false;remote={};revisions={};queue={};lock(true);
-  if(!user){
-    show('🟡 Identificando aparelho');
-    try{await authApi.signInAnonymously(auth);}catch(e){fail(e);}
-    return;
   }
-  uid=user.uid;
-  document.getElementById('deviceIdentity').textContent='Código deste aparelho: '+uid;
-  try{
-    // Backup obrigatório antes de substituir a visualização local pela nuvem.
-    if(!localStorage.getItem('noel-cloud-backup-'+config.projectId)){
-      backup();localStorage.setItem('noel-cloud-backup-'+config.projectId,'1');
-    }
-    queue=JSON.parse(localStorage.getItem(queueKey())||'{}');
-    const meta=await sdk.getDocFromServer(root);
-    initialized=meta.exists();
-    const first=await sdk.getDocsFromServer(collectionRef);
-    if(!initialized&&!first.empty)throw Error('Nuvem inconsistente: existem registros sem controle de migração');
-    for(const doc of first.docs){const value=doc.data();remote[value.key]=value.value;revisions[value.key]=value.revision;}
-    ready=true;
-    if(initialized){repaint();lock(false);message.textContent='Nuvem carregada. O backup local anterior foi preservado.';}
-    else{
-      const local=flatten(original);
-      preview.textContent=JSON.stringify({lojas:Object.fromEntries(Object.entries(original.stores).map(([s,v])=>[s,{quantidades:Object.keys(v.quantities).length,marcados:Object.keys(v.selected).length}])),catalogo:original.catalog,conferencias:original.history.length,registros:Object.keys(local).length},null,2);
-      preview.hidden=false;migrate.hidden=false;message.textContent='Nuvem vazia. Confira a prévia e importe os dados deste aparelho, ou inicialize vazia em um aparelho sem dados. Não importe de outro aparelho antes de escolher a origem correta.';
-    }
-    unsubscribers.push(sdk.onSnapshot(collectionRef,{includeMetadataChanges:true},snap=>{
-      if(snap.metadata.fromCache)return;
-      remote={};revisions={};for(const d of snap.docs){const v=d.data();remote[v.key]=v.value;revisions[v.key]=v.revision;}
-      // Uma transação pode ter sido confirmada antes de fechar o navegador.
-      for(const d of snap.docs){const v=d.data();if(queue[v.key]?.operation===v.operation)delete queue[v.key];}
-      persistQueue();if(initialized)repaint();flush();
-    },fail));
-    unsubscribers.push(sdk.onSnapshot(root,snap=>{
-      if(snap.exists()&&!initialized){message.textContent='A nuvem foi inicializada. Recarregue para carregar os dados.';migrate.hidden=true;}
-    },fail));
-    status();flush();
-  }catch(e){fail(e);}
-}
-migrate.onclick=async()=>{
-  if(!ready||initialized||!navigator.onLine)return;
-  if(!confirm('Importar os dados da prévia para a nuvem vazia? Um backup será baixado antes. Nenhum dado remoto existente será substituído.'))return;
-  migrate.disabled=true;
-  try{
-    backup();const entries=Object.entries(flatten(original));
-    if(entries.length>450)throw Error('Mais de 450 registros: migração assistida necessária para manter a importação atômica');
-    await sdk.runTransaction(db,async tx=>{
-      if((await tx.get(root)).exists())throw Error('Outro aparelho já inicializou a nuvem. Recarregue; nada foi substituído');
-      tx.set(root,{schema:1,createdAt:sdk.serverTimestamp()});
-      for(const [key,value] of entries)tx.set(sdk.doc(collectionRef,id(key)),{key,value,revision:1,updatedAt:sdk.serverTimestamp(),operation:crypto.randomUUID()});
-    });
-    location.reload();
-  }catch(e){fail(e);migrate.disabled=false;}
+});
+ui.onChange=()=>{try{if(editor){engine.capture(flatten(ui.read()));clearTimeout(timer);timer=setTimeout(()=>engine.flush(),650);}}catch(e){main.inert=true;get('syncStatus').textContent='⚠️ Erro de armazenamento';get('syncMessage').textContent=e.message;}};
+get('backupButton').onclick=()=>{try{backup();get('syncMessage').textContent='Backup preservado no navegador e enviado para download.';}catch(e){get('syncMessage').textContent=e.message;}};
+get('retrySync').onclick=async()=>{engine.retryAt=0;await engine.poll();await engine.flush();};
+get('migrateButton').onclick=async()=>{
+  if(!get('migrationConfirmed').checked){get('syncMessage').textContent='Marque a confirmação após conferir a prévia.';return;}
+  try{backup();await engine.initialize(flatten(original));get('migrationPreview').hidden=true;get('migrationConsent').hidden=true;get('migrateButton').hidden=true;}catch(e){get('syncMessage').textContent=e.message;}
 };
-
-if(!config.projectId){show('🟡 Modo local · nuvem não configurada');message.textContent='Firebase ainda não configurado. As funcionalidades locais continuam disponíveis.';}
-else{
-  lock(true);
-  try{
-    const [{initializeApp},authSdk,firestoreSdk]=await Promise.all([
-      import('https://www.gstatic.com/firebasejs/12.0.0/firebase-app.js'),
-      import('https://www.gstatic.com/firebasejs/12.0.0/firebase-auth.js'),
-      import('https://www.gstatic.com/firebasejs/12.0.0/firebase-firestore.js')]);
-    sdk=firestoreSdk;authApi=authSdk;const app=initializeApp(config);auth=authSdk.getAuth(app);
-    await authSdk.setPersistence(auth,authSdk.browserLocalPersistence);
-    db=sdk.initializeFirestore(app,{localCache:sdk.persistentLocalCache({tabManager:sdk.persistentMultipleTabManager()})});
-    root=sdk.doc(db,'noel/'+(config.workspace||'main'));collectionRef=sdk.collection(root,'entries');
-    // Uma aba editora por navegador impede disputa pela mesma fila local.
-    if(!navigator.locks)throw Error('Navegador sem suporte à proteção de múltiplas abas; use Chrome, Edge ou Safari atualizado');
-    navigator.locks.request('noel-sync-'+config.projectId,{ifAvailable:true},async lockHandle=>{
-      if(!lockHandle){show('⚠️ Sistema aberto em outra aba');message.textContent='Use a outra aba ou feche-a e recarregue esta.';return;}
-      authSdk.onAuthStateChanged(auth,begin);
-      await new Promise(()=>{});
-    }).catch(fail);
-  }catch(e){fail(e);}
-}
+get('conflictButton').onclick=()=>{
+  const box=get('conflictReview');box.replaceChildren();box.hidden=false;
+  try{backup(false);}catch(e){get('syncMessage').textContent=e.message;return;}
+  for(const op of Object.values(engine.queue).filter(x=>x.conflict)){
+    const row=document.createElement('div'),label=document.createElement('p');label.textContent=op.key+' · Nuvem: '+JSON.stringify(engine.remote[op.key])+' · Sua edição: '+JSON.stringify(op.value);row.append(label);
+    for(const [text,useLocal] of [['Usar valor da nuvem',false],['Reenviar minha edição',true]]){const button=document.createElement('button');button.type='button';button.textContent=text;button.onclick=()=>{engine.resolve(op.key,useLocal);row.remove();engine.flush();};row.append(button);}box.append(row);
+  }
+};
+window.addEventListener('offline',()=>engine.status());
+window.addEventListener('online',async()=>{await engine.poll();await engine.flush();});
+window.addEventListener('beforeunload',event=>{if(Object.keys(engine.queue).length){event.preventDefault();event.returnValue='Há alterações pendentes';}});
+document.addEventListener('visibilitychange',()=>{if(!document.hidden)engine.poll();});
+async function tick(){await engine.flush();await engine.poll();setTimeout(tick,document.hidden?30000:5000);}
+async function start(){engine.render();await tick();}
+if(navigator.locks){navigator.locks.request('noel-api-editor',{ifAvailable:true},async lock=>{if(!lock){editor=false;main.inert=true;get('syncMessage').textContent='O sistema já está aberto em outra aba deste navegador. Use essa aba para editar.';return;}await start();await new Promise(()=>{});}).catch(error=>{get('syncMessage').textContent=error.message;});}else start();

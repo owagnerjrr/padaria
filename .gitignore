@@ -4,3 +4,7 @@ dist/
 .env*
 *-debug.log
 firebase-debug.log
+credentials/
+**/*service-account*.json
+**/*firebase-adminsdk*.json
+padariastefany-7ab8a-*.json

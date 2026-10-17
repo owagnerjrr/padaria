@@ -1,187 +1,167 @@
-# Sincronização Noel — implementação em validação
+# Noel — API Vercel com Firestore, sem login
 
-## Situação desta entrega
+## Estado da entrega
 
-Branch `feat/firestore-realtime`. Sem merge e sem publicação em produção.
-Projeto autorizado: `padariastefany-7ab8a`. Firestore Standard `(default)` criado em
-`southamerica-east1`, plano Spark. Após aprovação do usuário, as regras restritas
-foram publicadas e o navegador de teste foi autorizado. Nenhum dado operacional foi importado. App web `Controle de Produção Noel`
-registrado; quatro variáveis públicas do SDK salvas exclusivamente em Preview na Vercel.
-Produção mantém o commit `caf6054`.
+A implementação foi alterada para cumprir a decisão de acesso público pelo link.
+Não há tela de login, Firebase Authentication, autorização de aparelho nem SDK Firebase
+no navegador. O frontend chama uma API de mesma origem; o servidor usa Firebase Admin SDK.
 
-O código e os testes locais não substituem testes reais do Firebase. Atendendo ao
-pedido de não usar conta com e-mail/senha, o app usa Firebase Authentication anônimo
-com autorização individual de aparelhos pelo administrador. Identificar o aparelho
-não concede acesso aos dados: seu UID precisa constar em `authorizedUsers`.
-Não habilitar acesso irrestrito. A autorização dos aparelhos reais está pendente.
+Esta versão **não foi publicada em produção**. Não foi gerada nem recebida chave de
+serviço. Nenhum dado real foi apagado, importado ou alterado nesta etapa. As regras
+novas de negar todo acesso de cliente estão no código, mas ainda não foram publicadas
+no Firebase nesta etapa; a configuração remota anterior permanece até a troca controlada.
 
-## Estrutura
+Configuração necessária: [passo a passo de conta de serviço e Vercel](CONFIGURACAO_FIREBASE.md).
 
-- `authorizedUsers/{uid}`: autorização criada exclusivamente pelo administrador no console.
-- `noel/production`: marcador imutável da migração real, schema e data do servidor.
-- `noel/production/entries/{id}`: registro de um campo, com chave lógica, valor, revisão,
-  operação única e data do servidor. ID codificado sem barras.
-- Chaves lógicas: `[quantity, loja, categoria|||produto]`,
-  `[selected, loja, categoria|||produto]`, `[catalog, all, categoria|||produto]`,
-  `[history, loja, id]`.
+## Funcionamento
 
-O build Vercel usa `preview` em Preview e `production` em produção. A área `noel/main`
-é reservada à homologação da primeira versão do preview e ao fallback de desenvolvimento;
-contém somente dados sintéticos. Nunca importar dados operacionais nela. O marcador
-desse teste foi criado pelo administrador com `purpose`, sem executar a migração do app.
-As áreas `production` e `preview` continuam sem inicialização operacional.
+- `/api/sync`: única Function Node.js 24, região `gru1`.
+- `GET`: estado inicial completo; depois consulta somente registros com
+  `changeVersion` maior que a última versão recebida.
+- `ETag`/`If-None-Match`: HTTP 304 quando nada mudou, sem consultar a coleção inteira.
+- Consulta a cada 5 segundos com a página visível; 30 segundos quando oculta.
+- Digitação: debounce de 650 ms. Envio limitado por número de operações e por bytes.
+- Fila persistente e cache no navegador; alterações ficam pendentes em falhas/offline.
+- Edição offline após um carregamento bem-sucedido e após reabrir com cache existente.
+  Abertura do site do zero sem internet não é garantida: não foi adicionado service worker.
+- Revisão por campo e transação: uma edição antiga não substitui outra mais recente.
+  O conflito permanece na fila e pode ser resolvido na interface.
+- ID de operação evita duplicação quando uma resposta é perdida após o commit.
+- Uma aba editora por navegador protege a fila local. Navegadores e aparelhos distintos
+  têm sessões de dados locais independentes e usam a mesma API, sem autenticação.
 
-Quantidades e seleção têm registros separados. As quatro lojas são independentes.
-O catálogo é global. Exclusão usa marcador; o histórico tem ID estável e não é
-apagado ao salvar uma nova conferência. Não há exclusão física de registros pelo app.
+## Dados preservados
 
-## Configurar acesso sem e-mail nem senha
+- `noel/production`: área operacional do servidor em Production.
+- `noel/preview`: área de homologação em Preview e desenvolvimento.
+- `noel/main`: dados técnicos anteriores, mantidos sem alterações nesta etapa.
+- `entries/{id}`: mesmo ID base64url e mesma chave lógica da implementação anterior.
+  Adiciona apenas `changeVersion`; preserva quantidades, seleção, catálogo e histórico.
+- `recovery/{id-revisão}`: valor anterior de cada campo modificado, salvo pelo servidor
+  na mesma transação. Não é exposto pela API pública.
+- `noelApiLimits/{ambiente-hash}` e `noelApiBudgets/{ambiente}`: contadores de proteção.
 
-1. Firebase → Authentication → Métodos de login → **Anônimo** já ativado.
-   Não é necessário cadastrar e-mail, senha ou formulário de login.
-2. Abrir o sistema no aparelho que deseja autorizar. Expandir o painel de
-   sincronização e copiar o código (UID) exibido. Criar `authorizedUsers/{UID}` no Firestore pelo console,
-   com um campo administrativo como `enabled: true`. A existência do documento
-   autoriza somente aquele aparelho; para revogar, remover o documento pelo console.
-   Repetir no celular, computador e tablet. Não autorizar códigos de desconhecidos.
-   Ao limpar os dados do navegador ou trocar de perfil, será necessária nova autorização.
-3. Registrar um app Web neste projeto e obter a configuração pública do SDK.
-4. Authentication → Configurações → Domínios autorizados: adicionar
-   `padaria-kappa-six.vercel.app` e o domínio exato do preview usado nos testes.
-5. `firestore.rules` já foi validado no simulador do console e publicado neste projeto,
-   conforme aprovação. Ainda é necessário ampliar testes de escrita e de migração no emulador.
-   Com CLI autenticada: `firebase deploy --only firestore:rules --project padariastefany-7ab8a`.
-6. Na Vercel, projeto `padaria`, configurar separadamente em Preview e Production:
-   `FIREBASE_API_KEY`, `FIREBASE_AUTH_DOMAIN`, `FIREBASE_PROJECT_ID`,
-   `FIREBASE_APP_ID`. São identificadores públicos do SDK web, não chaves administrativas.
-   Nunca adicionar service account ou chave privada.
-7. Build: `npm run build`; saída: `dist`. `vercel.json` especifica ambos.
-   O build sem configuração mantém o modo local e mostra que a nuvem não está configurada.
-   Não aprovar produção se o indicador estiver em modo local.
-8. Revisar o preview e executar a matriz abaixo. Produção exige aprovação do usuário.
+Lojas 01 a 04 continuam independentes; catálogo é global. Histórico é imutável pela API:
+não há endpoint de apagamento nem permissão de atualizar conferência existente.
+Exclusão do catálogo utiliza marcador, preservando o histórico e a possibilidade de recuperação.
+
+O armazenamento local é copiado antes de aplicar a primeira resposta da API. Os dados
+operacionais locais passam a refletir a nuvem, mas backups e chaves antigas permanecem.
+Filas da implementação anterior são preservadas no armazenamento e no backup; não são
+reenviadas automaticamente por uma arquitetura diferente. Revisar eventual pendência na migração.
+
+## Segurança e limites implementados
+
+- Conta de serviço somente no backend; segredo nunca entra no build estático.
+- Projeto permitido fixo: `padariastefany-7ab8a`.
+- Ambiente escolhido pelo servidor, nunca pelo corpo enviado pelo visitante.
+- Regras Firestore preparadas para negar todo acesso direto de clientes.
+- API aceita apenas GET e POST com JSON para alterações.
+- Bloqueio de origens externas e `Sec-Fetch-Site: cross-site`; sem CORS aberto.
+  Isso reduz abuso por outros sites, mas não autentica clientes HTTP diretos.
+- Schema estrito: quatro lojas, sete categorias, nomes até 120 caracteres, seleção
+  booleana, quantidade não negativa até 1.000.000, IDs e revisões válidos.
+- JSON de até 512.000 bytes, lote normal de até 32 operações; o cliente divide lotes
+  também por tamanho. Histórico até 500 itens e 120.000 caracteres por registro.
+- Por IP: 90 requisições/minuto, 45 envios/minuto, 5 leituras completas/minuto,
+  15.000 requisições/dia. Contadores persistentes e transacionais no Firestore;
+  não dependem da memória de uma instância serverless. IP é armazenado como HMAC.
+- Limite global de 3.000 alterações de campos/dia por ambiente.
+- HTTP 429 com `Retry-After`, respeitado pelo cliente; dados pendentes não são descartados.
+- Migração inicial desativada no servidor por padrão e recusada se já existe nuvem.
+- Respostas sem detalhes de chave, token, stack trace ou credencial.
+
+O acesso público implica que quem conhece o link pode consultar e alterar os dados,
+conforme aceito pelo responsável. Os limites reduzem abuso; não impedem ataques
+distribuídos nem garantem disponibilidade/custo zero. Antes da liberação, revisar
+as proteções DDoS e uma regra de limite para `/api/sync` no Firewall da Vercel, sem
+desabilitar as proteções existentes. Nenhuma regra de Firewall foi alterada nesta etapa.
+
+## Testes executados
+
+### Automatizados
+
+`npm test`: **20 testes passaram**. Incluem sincronização de dois clientes, deltas,
+HTTP 304 sem releitura da coleção, conflitos, fila offline, reinício do cliente,
+resposta perdida após commit, idempotência, recuperação, lotes grandes por bytes,
+validação, histórico imutável, limites entre instâncias e migração sem sobrescrita.
+
+Também executados: build estático, análise de sintaxe, `git diff --check`, inspeção dos
+arquivos estáticos para ausência de SDK de autenticação/segredos e `npm audit --omit=dev`
+(zero vulnerabilidades reportadas no momento da verificação).
+
+Os testes usam um adaptador de Firestore controlado e explicitamente identificado
+em `testing/fake-firestore.js`. Ele testa a lógica real da API e das transações, mas
+**não se conecta ao Firestore**. Esse adaptador não é importado pela Function da Vercel.
+
+### Dois navegadores reais
+
+Brave e navegador integrado do Codex, com armazenamentos independentes, acessaram
+o mesmo servidor HTTP local de testes, sem login ou código de aparelho.
+
+Confirmados pela interface:
+
+- Quantidade `10` digitada no Brave apareceu no outro navegador sem recarregar.
+- Seleção e desmarcação circularam nos dois sentidos, preservando a quantidade.
+- Zeragem chegou ao segundo navegador.
+- Loja 03 ficou vazia enquanto Loja 02 manteve seus valores.
+- Conferência salva no segundo navegador apareceu no histórico do primeiro.
+- Inclusão de produto apareceu nos dois; exclusão foi recebida nos dois.
+  O teste também provocou exclusão concorrente via API e interface, gerando conflito
+  preservado e resolvido pelo botão “Usar valor da nuvem”.
+- Importação CSV reconheceu três produtos e propagou `Arroz doce = 7`.
+- Exportação XLSX foi baixada e reimportada pela interface; reconheceu os três produtos.
+  Após trocar para `12`, a importação restaurou `7` e sincronizou pela API.
+- Após reabrir ambos os navegadores com o build final, os dois exibiram `7`.
+
+Esses testes de navegador usaram dados sintéticos e backend de teste em memória.
+Não comprovam a conexão da nova API com o serviço Firestore real.
+
+## Pendências antes de publicar
+
+1. Responsável criar conta de serviço e cadastrar os dois segredos em Preview.
+2. Validar Function implantada, IAM e transações com Firestore real.
+3. Publicar regras de negar todo acesso direto e confirmar bloqueio inclusive com
+   as antigas credenciais de cliente.
+4. Repetir a matriz entre dois navegadores usando Firestore real; testar falha/reconexão.
+5. Validar migração de uma cópia dos dados operacionais e a recuperação do backup.
+6. Revisar cotas e proteção da API; apresentar o resultado e pedir aprovação de produção.
 
 ## Migração e recuperação
 
-Escolher primeiro o navegador do domínio de produção que contém os dados corretos.
-Um preview tem origem diferente e não consegue ler o localStorage da produção.
-**Não inicializar a nuvem pelo preview vazio antes de obter o backup do navegador
-com os dados reais.**
+Identificar primeiro o navegador/domínio com os dados corretos. Um preview tem outra
+origem e não lê o localStorage da produção. Guardar backup antes de atualizar.
+Habilitar a importação inicial apenas durante a janela planejada, conferir a prévia
+e marcar a confirmação. A transação importa de forma atômica e não substitui área existente.
+Limite inicial: 450 registros e 512.000 bytes; acima disso a API recusa a importação,
+sem truncar ou apagar informações, e exige migração assistida.
 
-O app salva `noel-original-backup-v1` antes da adaptação do formato legado. Antes de
-aplicar a nuvem cria outro backup persistente e oferece download JSON. As chaves
-operacionais passam a representar a nuvem, mas os backups preservam o conteúdo
-anterior. Não limpar dados do site ou reinstalar o navegador durante a migração.
+Não limpar dados do site, backups ou documentos antigos. Em falha, baixar backup
+e corrigir a causa. Para recuperar valores do servidor, usar os registros de `recovery`
+por um procedimento administrativo que grave nova revisão e `changeVersion` e atualize
+o `apiVersion` na mesma transação. Não editar valores diretamente pelo console sem
+atualizar as versões, pois o polling depende dessas versões.
 
-A importação inicial mostra contagens por loja, catálogo e histórico e pede
-confirmação. Só é aceita para nuvem ainda não inicializada. Uma transação cria o
-marcador e os dados juntos, impedindo uma segunda importação de substituir os dados.
-Limite conservador: 450 registros na migração inicial atômica. Acima disso, o app
-interrompe e exige migração assistida; não trunca dados. Conferências não são cortadas.
+## Custos e manutenção
 
-Em falha: não apagar localStorage. Baixar backup e corrigir configuração/acesso.
-Para recuperação assistida, usar o JSON: seu campo `localStorage` contém cada chave
-e seu valor original. Restaurar em um perfil separado para revisar antes de usar
-como origem de uma nova migração. Não restaurar chaves antigas sobre uma nuvem já
-ativa: dados locais nunca são automaticamente mesclados à nuvem existente.
+O Firestore continua no Spark. As cotas padrão incluem 50.000 leituras/dia,
+20.000 gravações/dia, 1 GiB de dados e 10 GiB de saída/mês. Não há garantia de custo
+zero: API, limites persistentes e cópias de recuperação consomem operações e espaço.
+Dois navegadores visíveis por 8 horas fazem aproximadamente 11.520 consultas/dia;
+cada consulta consome operações do contador de limites e da leitura de versão.
+Abas ocultas consultam menos. Deltas evitam reler todo o catálogo a cada alteração.
 
-O primeiro carregamento autenticado exige conexão com o servidor. Após carregar,
-edições offline ficam em fila local persistente por projeto e UID; a reconexão
-as envia. O cache Firestore usa IndexedDB. Esta versão não inclui service worker:
-não promete abrir o site do zero sem internet. O indicador informa offline e
-pendências; fechar com pendências solicita aviso do navegador.
+Histórico e recuperação crescem sem exclusão automática. Até 6.000 registros de entrada
+podem ser retornados em uma sincronização; acima disso, o servidor sinaliza necessidade
+de paginação, preservando os dados. Antes desse volume, planejar paginação e retenção
+de cópias com aprovação. Os limites diários reiniciam em UTC.
 
-## Concorrência e falhas
+Fontes oficiais:
 
-A digitação é agrupada por 650 ms. Só campos alterados entram na fila. Uma aba
-editora por navegador, protegida por Web Locks; outra aba fica bloqueada.
-Cada gravação usa transação e compara a revisão observada. Se outro aparelho
-alterou o mesmo campo, a edição antiga fica na fila, sem substituir o servidor.
-O painel oferece revisar o valor remoto e o local. Antes da decisão baixa backup;
-o usuário pode aceitar a nuvem ou reenviar explicitamente sobre a revisão atual.
-Uma nova concorrência exige nova revisão. Repetições usam o ID da operação para
-reconhecer uma gravação já confirmada, inclusive após fechar o navegador.
-
-Limitações para homologação: operações em massa são vários campos independentes,
-não uma transação única; podem aparecer gradualmente. O listener carrega a coleção
-compartilhada (todas as lojas e histórico); o histórico aumenta o custo de leitura
-com o tempo. Monitorar volume e implementar paginação se necessário. Dados locais
-e backups permanecem no aparelho autorizado; usar bloqueio de tela.
-
-## Validação
-
-Executado: `node --test tests/*.test.mjs` (11 testes passaram),
-`node scripts/build.mjs`, `node --check app.js`, `node --check sync.js`,
-`git diff --check`.
-Os testes da fila usam um adaptador Firestore controlado, não um serviço real.
-Não executado: regras no emulador (instalação de dependências bloqueada por DNS),
-testes entre aparelhos físicos, reconexão real após queda da rede e migração real.
-
-Preview automático do commit inicial `acfa7b3` ficou Ready na Vercel:
-https://padaria-r11a5ihqt-wagners-projects-6386cb6e.vercel.app/
-Testado no navegador (modo local, antes de injetar a configuração Firebase): pesquisa,
-quantidade sem seleção, marcar/desmarcar preservando 10, lojas 01/02 independentes,
-zeragem preservando seleção, salvar relatório/histórico, e largura móvel de 390 px.
-Esses resultados não comprovam sincronização remota. A integração Vercel via MCP
-retornou 403 para o escopo; a configuração foi feita pelo dashboard autenticado.
-
-### Validação real com Firebase
-
-Preview autorizado para os testes:
-https://padaria-6avbrvev6-wagners-projects-6386cb6e.vercel.app/
-Commit dessa homologação: `f6ea178`. Os commits posteriores isolam os nomes dos
-ambientes para proteger a futura migração de produção.
-
-- Firebase Authentication anônimo identificou o navegador sem e-mail/senha.
-- Leitura REST sem autenticação retornou HTTP 403 `PERMISSION_DENIED`.
-- Simulador das regras: sem autenticação negado, UID desconhecido negado, UID aprovado permitido.
-- Navegador aprovado: `PMqY68Be1mQYViQamcmJPHT6fb62`, cadastrado pelo administrador.
-- Quantidade `10` sem seleção foi gravada na nuvem e reapareceu após recarregar.
-- Marcar/desmarcar no servidor preservou `10`.
-- Alteração pelo console para `14` apareceu no app aberto **sem recarregar**.
-- Loja 01 continuou vazia enquanto Loja 02 mantinha `10`.
-- Zerar quantidades chegou ao estado sincronizado e preservou a seleção.
-- Conferência com `14` foi salva e sincronizada; histórico remoto por ID.
-- Produto sintético adicionado ao catálogo apareceu nas lojas 02 e 04, uma única vez.
-
-Isso comprova comunicação real app → Firestore e Firestore → app via listener;
-não equivale ao teste de dois aparelhos físicos. Não foi declarada sincronização
-celular/computador como validada.
-
-O teste de upload de CSV/Excel no navegador ficou bloqueado porque a extensão do
-Brave não tem acesso a arquivos locais; nenhuma permissão de extensão foi alterada.
-A confirmação nativa da migração não pôde ser aceita pela automação; por isso,
-a área técnica foi inicializada pelo console. A migração pelo botão continua pendente.
-O teste não usou dados reais e não inicializou `noel/production`.
-
-Antes do merge, testar em contextos independentes de celular e computador:
-
-- Identificação automática e acesso somente ao UID autorizado; cliente sem autenticação
-  e aparelho com autenticação anônima mas sem autorização devem ter leitura/gravação negadas.
-- Quantidade sem marcação, desmarcação preservando quantidade, seleção e limpeza.
-- Lojas 01 a 04 independentes, catálogo compartilhado, adição e exclusão.
-- Excel com números e texto, prévia, cancelamento, confirmação e sincronização.
-- Histórico compartilhado, sem duplicações, filtrado pela loja.
-- Duas edições no mesmo campo: conflito preservado e resolução explícita.
-- Edições em campos diferentes: ambas preservadas.
-- Offline após carregamento, reconexão, fechar e reabrir com fila pendente.
-- Migração com dados reais e backup, falha/repetição, nuvem já preenchida e limite de tamanho.
-- Revisão visual e funcional em tela de celular, relatórios, Excel e WhatsApp.
-
-## Custos e fontes
-
-Spark: custo previsto de US$ 0 dentro das cotas. Firestore Standard oferece
-1 GiB de armazenamento, 50.000 leituras/dia, 20.000 gravações/dia e
-20.000 exclusões/dia, além de 10 GiB/mês de transferência de saída gratuita.
-Listeners, reconexões, leitura de autorização nas regras e transações também
-consomem operações. Não habilitar Blaze ou backups pagos sem aprovação.
-No Spark, atingir limites pode interromper o serviço; não há promessa de capacidade ilimitada.
-
-Fontes oficiais (verificar antes de publicar):
-https://firebase.google.com/docs/firestore/pricing
-https://firebase.google.com/docs/firestore/quotas
-https://firebase.google.com/docs/firestore/manage-data/transactions
-https://firebase.google.com/docs/firestore/manage-data/enable-offline
+- [Functions Node.js](https://vercel.com/docs/functions/runtimes/node-js)
+- [Headers e IP na Vercel](https://vercel.com/docs/headers/request-headers)
+- [Firestore pelo servidor e IAM](https://docs.cloud.google.com/firestore/native/docs/security/iam)
+- [Cotas e faturamento](https://firebase.google.com/docs/firestore/pricing)
 
 Repositório: https://github.com/owagnerjrr/padaria
 Produção atual: https://padaria-kappa-six.vercel.app/
-Console: https://console.firebase.google.com/project/padariastefany-7ab8a/overview
