@@ -4,6 +4,7 @@ export function flatten(data) {
     for(const [key,value] of Object.entries(values.quantities)) result[JSON.stringify(['quantity',store,key])]=String(value);
     for(const key of Object.keys(values.selected)) result[JSON.stringify(['selected',store,key])]=true;
   }
+  for(const [key,code] of Object.entries(data.codes||{}))if(code)result[JSON.stringify(['code','all',key])]=code;
   for(const item of data.catalog.added)result[JSON.stringify(['catalog','all',item.category+'|||'+item.name])]=true;
   for(const item of data.catalog.removed)result[JSON.stringify(['catalog','all',item.category+'|||'+item.name])]=false;
   for(const item of data.history)result[JSON.stringify(['history',item.store,item.id])]=item;
@@ -15,12 +16,13 @@ export function diff(before,after) {
     .map(key=>({key,value:after[key]??null}));
 }
 export function materialize(entries,baseCatalog) {
-  const data={stores:Object.fromEntries(['01','02','03','04'].map(s=>[s,{selected:{},quantities:{}}])),catalog:{added:[],removed:[]},history:[]};
+  const data={stores:Object.fromEntries(['01','02','03','04'].map(s=>[s,{selected:{},quantities:{}}])),catalog:{added:[],removed:[]},codes:{},history:[]};
   for(const [key,value] of Object.entries(entries)) {
     const [kind,store,itemKey]=JSON.parse(key);
     if(value===null)continue;
     if(kind==='quantity')data.stores[store].quantities[itemKey]=value;
     if(kind==='selected'&&value){const [category,name]=itemKey.split('|||');data.stores[store].selected[itemKey]={category,name,qty:''};}
+    if(kind==='code'){data.codes[itemKey]=value;}
     if(kind==='catalog'){
       const [category,name]=itemKey.split('|||');
       if(value===false)data.catalog.removed.push({category,name});
