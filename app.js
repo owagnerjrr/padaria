@@ -250,8 +250,8 @@ function renderProducts() {
       return `<div class="product-row ${checked ? "selected" : ""}">
         <input type="checkbox" aria-label="Selecionar ${escapeHTML(name)}" data-key="${encodeURIComponent(key)}" ${checked ? "checked" : ""} />
         <span class="product-name">${escapeHTML(name)}</span>
-        <span class="code-wrap"><input class="code-input" aria-label="Código de ${escapeHTML(name)}" data-code-key="${encodeURIComponent(key)}" type="text" inputmode="numeric" maxlength="32" placeholder="Código" value="${escapeHTML(productCodes[key] || "")}" /></span>
-        <span class="qty-wrap">
+        <span class="code-wrap"><small class="field-caption">Código do produto</small><input class="code-input" aria-label="Código de ${escapeHTML(name)}" data-code-key="${encodeURIComponent(key)}" type="text" inputmode="numeric" maxlength="32" placeholder="Código" value="${escapeHTML(productCodes[key] || "")}" /></span>
+        <span class="qty-wrap"><small class="field-caption">Quantidade</small>
           <input class="qty-input" aria-label="Quantidade de ${escapeHTML(name)}" data-qty-key="${encodeURIComponent(key)}" type="number" min="0" step="any" inputmode="decimal" placeholder="Qtd." value="${safeQty}" />
           <span class="qty-label">${unit}</span>
         </span>
@@ -372,8 +372,8 @@ function clearAllQuantitiesForStore() {
   const keys=new Set([...Object.keys(state.quantities),...Object.keys(state.selected)]);
   const changed=[...keys].filter(key=>String(state.quantities[key] ?? state.selected[key]?.qty ?? "").trim()!=="" && Number(state.quantities[key] ?? state.selected[key]?.qty)!==0);
   if(!changed.length){
-    els.savedMessage.textContent="As quantidades da Loja "+store+" já estão zeradas.";
-    els.clearQuantitiesButton.textContent="✓ Quantidades já zeradas";
+    els.savedMessage.textContent="Nenhuma quantidade preenchida na Loja "+store+". Os números exibidos em Código são códigos dos produtos e não serão apagados.";
+    els.clearQuantitiesButton.textContent="✓ Quantidades já zeradas (códigos mantidos)";
     setTimeout(()=>els.clearQuantitiesButton.textContent="⌫ Zerar quantidades",2500);
     return;
   }
@@ -382,7 +382,7 @@ function clearAllQuantitiesForStore() {
   persistCurrent();
   renderProducts();renderSummary();
   els.clearQuantitiesButton.textContent="✓ "+changed.length+" quantidades zeradas";
-  els.savedMessage.textContent=changed.length+" quantidades da Loja "+store+" zeradas. Aguarde o status Sincronizado para confirmar o envio.";
+  els.savedMessage.textContent=changed.length+" quantidades da Loja "+store+" zeradas. Códigos preservados. Aguarde o status Sincronizado.";
   setTimeout(()=>els.clearQuantitiesButton.textContent="⌫ Zerar quantidades",3500);
 }
 els.clearQuantitiesButton.addEventListener("click",clearAllQuantitiesForStore);
