@@ -367,17 +367,21 @@ els.clearButton.addEventListener("click", () => {
 });
 
 els.clearQuantitiesButton.addEventListener("click", () => {
-  const hasQuantities = Object.values(state.quantities).some(value => String(value ?? "").trim() !== "");
-  if (!hasQuantities) {
-    els.savedMessage.textContent = "Não há quantidades preenchidas para zerar nesta loja.";
+  const store = state.store;
+  const keys = new Set([...Object.keys(state.quantities), ...Object.keys(state.selected)]);
+  const hasQuantities = [...keys].some(key => String(state.quantities[key] ?? state.selected[key]?.qty ?? "").trim() !== "" && Number(state.quantities[key] ?? state.selected[key]?.qty) !== 0);
+  if (!keys.size || !hasQuantities) {
+    els.savedMessage.textContent = "As quantidades da Loja " + store + " já estão zeradas.";
     return;
   }
-  state.quantities = {};
-  Object.values(state.selected).forEach(item => { item.qty = ""; });
+  if (!confirm("Zerar todas as quantidades da Loja " + store + "? Os produtos marcados serão mantidos.")) return;
+  // Registrar zero explicitamente: evita recuperar quantidades antigas na sincronização.
+  for (const key of keys) state.quantities[key] = "0";
+  Object.values(state.selected).forEach(item => { item.qty = "0"; });
   persistCurrent();
   renderProducts();
   renderSummary();
-  els.savedMessage.textContent = "Quantidades da Loja " + state.store + " zeradas. Seleções preservadas.";
+  els.savedMessage.textContent = "Quantidades da Loja " + store + " zeradas. Aguardando sincronização com os outros aparelhos.";
 });
 
 els.saveButton.addEventListener("click", () => {
