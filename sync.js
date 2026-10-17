@@ -3,6 +3,7 @@ import {flatten,materialize} from './sync-core.js';
 const ui=window.noelSync, original=ui.read();
 const get=id=>document.getElementById(id),main=document.querySelector('main');
 let editor=true,first=true,timer;
+let waitingForCloud=false;
 function backup(download=true){
   const saved={};for(let i=0;i<localStorage.length;i++){const key=localStorage.key(i);if(key.startsWith('noel-')&&!key.startsWith('noel-backup-'))saved[key]=localStorage.getItem(key);}
   const data=JSON.stringify({version:2,createdAt:new Date().toISOString(),data:ui.read(),localStorage:saved},null,2);
@@ -15,7 +16,7 @@ const engine=new ApiSync({storage:localStorage,
     main.inert=false;get('conflictButton').hidden=!state.conflicts.length;
     get('syncStatus').textContent=state.offline?'🔴 Sem conexão'+(state.pending?' · alterações pendentes':''):state.error?'⚠️ Erro de sincronização':state.conflicts.length?'⚠️ Conflito · revisar':state.pending?'🟡 Salvando alterações':state.initialized?'🟢 Sincronizado':'🟡 Aguardando nuvem';
     if(state.error)get('syncMessage').textContent=state.error+' Seus dados e alterações pendentes foram preservados.';
-    else if(state.initialized)get('syncMessage').textContent=state.pending?'Alterações aguardando envio.':'Atualização automática a cada 5 segundos. Acesso direto pelo link, sem login.';
+    else if(state.initialized)get('syncMessage').textContent=state.pending?'Alterações aguardando envio para a nuvem. Confira antes de fechar a página.':'Atualização automática a cada 5 segundos. Acesso direto pelo link, sem login.';
     else if(state.ready){
       get('migrationPreview').hidden=false;
       get('migrationPreview').textContent=JSON.stringify({lojas:Object.fromEntries(Object.entries(original.stores).map(([s,v])=>[s,{quantidades:Object.keys(v.quantities).length,marcados:Object.keys(v.selected).length}])),catalogo:original.catalog,conferencias:original.history.length},null,2);
@@ -55,4 +56,6 @@ async function start(){
   }
   await tick();
 }
-if(navigator.locks){navigator.locks.request('noel-api-editor',{ifAvailable:true},async lock=>{if(!lock){editor=false;main.inert=false;get('syncMessage').textContent='Outra aba está sincronizando. Você pode consultar os dados aqui; para salvar na nuvem, use a primeira aba.';return;}await start();await new Promise(()=>{});}).catch(error=>{get('syncMessage').textContent=error.message;});}else start();
+// Cada aba executa sua própria sincronização. O servidor resolve conflitos por revisão.
+// Não manter a segunda aba permanentemente sem atualização.
+start().catch(error=>{get('syncStatus').textContent='⚠️ Erro de sincronização';get('syncMessage').textContent=error.message;});
