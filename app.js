@@ -106,7 +106,25 @@ function normalize(text) {
   return text.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
 }
 
-const categoryIcons = ["▦","🧁","🥟","🍮","🥖","🌿","🥩","🍕"];
+const defaultCategoryIcons = {"Todos":"▦","Doces":"🧁","Salgados":"🥟","Sabores":"🍮","Caseiros":"🥖","Hortifrúti":"🌿","Açougue":"🥩","Pizzas":"🍕"};
+const iconChoices = ["🧁","🍰","🍩","🍪","🍫","🍬","🍮","🍦","🥟","🥐","🥖","🥨","🍞","🥪","🍔","🌭","🍕","🍟","🥗","🥬","🥕","🍎","🍓","🍇","🍌","🍍","🥩","🍗","🍖","🧀","🥛","☕","🧃","🎂","🍽️","📦","⭐","🏷️"];
+function iconForCategory(category){ return catalogEdits.icons?.[category] || defaultCategoryIcons[category] || "🏷️"; }
+const iconCategorySelect=document.getElementById("groupIconCategory");
+const iconChoiceSelect=document.getElementById("groupIconChoice");
+function setupGroupIcons(){
+  iconCategorySelect.innerHTML=Object.keys(catalog).map(category=>`<option value="${escapeHTML(category)}">${escapeHTML(category)}</option>`).join("");
+  iconChoiceSelect.innerHTML=[...new Set([...Object.values(defaultCategoryIcons),...iconChoices])].map(icon=>`<option value="${icon}">${icon}</option>`).join("");
+  const update=()=>{const current=iconForCategory(iconCategorySelect.value);if(![...iconChoiceSelect.options].some(option=>option.value===current)){iconChoiceSelect.add(new Option(current,current));}iconChoiceSelect.value=current;};
+  iconCategorySelect.addEventListener("change",update);
+  document.getElementById("saveGroupIcon").addEventListener("click",()=>{
+    catalogEdits.icons ||= {};
+    catalogEdits.icons[iconCategorySelect.value]=iconChoiceSelect.value;
+    saveCatalogEdits();refreshCatalog();
+    manage.message.textContent="Ícone de "+iconCategorySelect.value+" atualizado para "+iconChoiceSelect.value+".";
+  });
+  update();
+}
+
 const manage = {
   form:document.getElementById("addProductForm"),
   name:document.getElementById("newProductName"),
@@ -126,6 +144,7 @@ function suggestCategory(name) {
   return "Doces";
 }
 manage.name.addEventListener("input",()=>{manage.category.value=suggestCategory(manage.name.value);});
+setupGroupIcons();
 function refreshCatalog() { renderFilters();renderProducts();renderSummary();renderManageResults(); }
 manage.form.addEventListener("submit",event=>{
   event.preventDefault();
@@ -172,7 +191,7 @@ manage.search.addEventListener("input",renderManageResults);
 
 function renderFilters() {
   const categories = ["Todos", ...Object.keys(catalog)];
-  els.categoryFilters.innerHTML = categories.map((cat, i) => `<button class="chip ${state.category === cat ? "active" : ""}" data-category="${cat}"><span class="chip-icon" aria-hidden="true">${categoryIcons[i]}</span> ${cat}</button>`).join("");
+  els.categoryFilters.innerHTML = categories.map((cat, i) => `<button class="chip ${state.category === cat ? "active" : ""}" data-category="${cat}"><span class="chip-icon" aria-hidden="true">${iconForCategory(cat)}</span> ${cat}</button>`).join("");
   els.categoryFilters.querySelectorAll(".chip").forEach(btn => btn.addEventListener("click", () => {
     state.category = btn.dataset.category;
     renderFilters();
@@ -198,7 +217,7 @@ function renderProducts() {
   categories.forEach(category => {
     const matches = catalog[category].filter(name => (!query || normalize(name).includes(query)) && (!state.onlySelected || !!state.selected[keyFor(category,name)]));
     if (!matches.length) return;
-    html += `<div class="category-title">${category}</div>`;
+    html += `<div class="category-title">${iconForCategory(category)} ${escapeHTML(category)}</div>`;
     html += matches.map(name => {
       const key = keyFor(category, name);
       const item = state.selected[key];
