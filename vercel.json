@@ -1,0 +1,1 @@
+{"buildCommand":"npm run build","outputDirectory":"dist","regions":["gru1"],"functions":{"api/sync.js":{"maxDuration":30}}}

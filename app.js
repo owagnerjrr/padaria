@@ -1,3 +1,9 @@
+// Preservar o armazenamento original antes de qualquer adaptação legada.
+if (!localStorage.getItem('noel-original-backup-v1')) {
+  const raw={};
+  for(let i=0;i<localStorage.length;i++){const key=localStorage.key(i);if(key.startsWith('noel-'))raw[key]=localStorage.getItem(key);}
+  localStorage.setItem('noel-original-backup-v1',JSON.stringify({createdAt:new Date().toISOString(),localStorage:raw}));
+}
 const catalog = {
   "Doces": [
     "Alfajor","Arroz doce","Banofe","Gelado","Bombocado Noel","Brigadeirão","Brownie","Carolina tradicional","Carolina mousse limão","Cookie","Cupcake","Curau de milho verde","Donuts","Gelatina colorida","Lua de mel","Manjar","Maria mole","Mousse de abacaxi","Mousse de limão","Mousse de maracujá","Mousse de morango","Mousse de uva","Palha italiana","Palha italiana de ninho","Pão de mel","Pavê de chocolate","Pudim de leite condensado","Pudim de padaria","Queijadinha","Rabanada / doce de leite","Rocambole","Rocambole de brigadeiro","Suspiro","Bombinha recheada","Bombom de uva no pote","Tortas especiais","Bolo cenoura de chocolate","Pudim 150 ml","Pudim 500 ml","Bolo de pote"
@@ -37,7 +43,7 @@ function applyCatalogEdits() {
     if (catalog[item.category] && !catalog[item.category].some(name => normalize(name) === normalize(item.name))) catalog[item.category].push(item.name);
   });
 }
-function saveCatalogEdits() { localStorage.setItem("noel-catalog-edits",JSON.stringify(catalogEdits));applyCatalogEdits(); }
+function saveCatalogEdits() { localStorage.setItem("noel-catalog-edits",JSON.stringify(catalogEdits));applyCatalogEdits();window.noelSync?.onChange?.(); }
 applyCatalogEdits();
 
 const state = {
@@ -92,6 +98,7 @@ els.storeSelect.value = state.store;
 function keyFor(category, name) {
   return `${category}|||${name}`;
 }
+function escapeHTML(value) { return String(value??'').replace(/[&<>"']/g,char=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char])); }
 
 function normalize(text) {
   return text.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
@@ -144,7 +151,7 @@ function renderManageResults() {
       if(!confirm('Excluir "'+item.name+'" do catálogo? As quantidades e seleções deste produto serão apagadas nas quatro lojas.'))return;
       const key=keyFor(item.category,item.name);
       catalogEdits.added=catalogEdits.added.filter(x=>!(x.category===item.category&&x.name===item.name));
-      if(baseCatalog[item.category].includes(item.name))catalogEdits.removed.push(item);
+      catalogEdits.removed.push(item);
       for(const store of ["01","02","03","04"]){
         const selected=JSON.parse(localStorage.getItem(`noel-current-${store}`)||"{}");
         const quantities=JSON.parse(localStorage.getItem(`noel-quantities-${store}`)||"{}");
@@ -198,10 +205,10 @@ function renderProducts() {
       const unit = /(?:\bkg\b|\bquilo\b)/i.test(name) ? "kg" : "un.";
       const safeQty = String(qty).replace(/[^0-9.,]/g,"");
       return `<div class="product-row ${checked ? "selected" : ""}">
-        <input type="checkbox" aria-label="Selecionar ${name}" data-key="${encodeURIComponent(key)}" ${checked ? "checked" : ""} />
-        <span class="product-name">${name}</span>
+        <input type="checkbox" aria-label="Selecionar ${escapeHTML(name)}" data-key="${encodeURIComponent(key)}" ${checked ? "checked" : ""} />
+        <span class="product-name">${escapeHTML(name)}</span>
         <span class="qty-wrap">
-          <input class="qty-input" aria-label="Quantidade de ${name}" data-qty-key="${encodeURIComponent(key)}" type="number" min="0" step="any" inputmode="decimal" placeholder="Qtd." value="${safeQty}" />
+          <input class="qty-input" aria-label="Quantidade de ${escapeHTML(name)}" data-qty-key="${encodeURIComponent(key)}" type="number" min="0" step="any" inputmode="decimal" placeholder="Qtd." value="${safeQty}" />
           <span class="qty-label">${unit}</span>
         </span>
       </div>`;
@@ -265,7 +272,7 @@ function buildReport() {
 function renderSummary() {
   const items = selectedItems();
   els.summaryEmpty.style.display = items.length ? "none" : "block";
-  els.summaryList.innerHTML = items.map(item => `<div class="summary-item"><strong>${item.name}</strong><span>${item.category}${item.qty ? ` · ${item.qty} un.` : ""}</span></div>`).join("");
+  els.summaryList.innerHTML = items.map(item => `<div class="summary-item"><strong>${escapeHTML(item.name)}</strong><span>${escapeHTML(item.category)}${item.qty ? ` · ${escapeHTML(item.qty)} un.` : ""}</span></div>`).join("");
   els.reportPreview.value = buildReport();
   els.selectedCount.textContent = items.length;
   els.unitsCount.textContent = items.filter(item => itemUnit(item) === "un.").reduce((sum, item) => sum + quantity(item), 0);
@@ -275,13 +282,14 @@ function renderSummary() {
 function persistCurrent() {
   localStorage.setItem(`noel-quantities-${state.store}`, JSON.stringify(state.quantities));
   localStorage.setItem(`noel-current-${state.store}`, JSON.stringify(state.selected));
+  window.noelSync?.onChange?.();
 }
 
 function renderHistory() {
-  const history = JSON.parse(localStorage.getItem("noel-history") || "[]");
+  const history = JSON.parse(localStorage.getItem("noel-history") || "[]").filter(entry=>entry.store===state.store);
   els.historyList.innerHTML = history.length ? history.slice(0, 9).map(entry => `
     <article class="history-card">
-      <strong>Loja ${entry.store} · ${entry.date}</strong>
+      <strong>Loja ${escapeHTML(entry.store)} · ${escapeHTML(entry.date)}</strong>
       <span>${entry.count} produtos</span>
       <span>${entry.units} unidades informadas</span>
     </article>`).join("") : `<div class="empty-state">Nenhuma conferência salva ainda.</div>`;
@@ -296,6 +304,7 @@ els.storeSelect.addEventListener("change", e => {
   state.quantities = loadQuantities(state.store);
   renderProducts();
   renderSummary();
+  renderHistory();
 });
 els.clearButton.addEventListener("click", () => {
   if (!selectedItems().length || confirm("Deseja limpar todos os produtos marcados?")) {
@@ -328,14 +337,17 @@ els.saveButton.addEventListener("click", () => {
   }
   const history = JSON.parse(localStorage.getItem("noel-history") || "[]");
   history.unshift({
+    id: crypto.randomUUID(),
+    createdAt: Date.now(),
     store: state.store,
     date: new Date().toLocaleString("pt-BR"),
     count: items.length,
     units: items.reduce((sum,item) => sum + (Number(item.qty) || 0), 0),
     items
   });
-  localStorage.setItem("noel-history", JSON.stringify(history.slice(0, 50)));
-  els.savedMessage.textContent = "Conferência salva neste aparelho.";
+  localStorage.setItem("noel-history", JSON.stringify(history));
+  window.noelSync?.onChange?.();
+  els.savedMessage.textContent = "Conferência salva. Consulte o status de sincronização.";
   renderHistory();
 });
 
@@ -420,7 +432,7 @@ function parseAmount(value) {
   if (typeof value === "number") return Number.isFinite(value) && value > 0 ? value : null;
   if (typeof value !== "string") return null;
   const raw = value.trim();
-  if (!/^\\d+(?:[.,]\\d+)?$/.test(raw)) return null;
+  if (!/^\d+(?:[.,]\d+)?$/.test(raw)) return null;
   const n = Number(raw.replace(",", "."));
   return Number.isFinite(n) && n > 0 ? n : null;
 }
@@ -469,8 +481,8 @@ function closeImport() {
   pendingImport=null; els.importPreview.hidden=true; els.excelFile.value="";
 }
 els.excelFile.addEventListener("change",async e=>{
-  closeImport();
   const file=e.target.files?.[0];
+  closeImport();
   if(!file)return;
   els.importStatus.textContent="Lendo planilha...";
   try {
@@ -507,3 +519,31 @@ els.confirmImport.addEventListener("click",()=>{
   closeImport();
 });
 els.cancelImport.addEventListener("click",()=>{closeImport();els.importStatus.textContent="Importação cancelada.";});
+
+// Adaptador: mantém os controles e relatórios existentes, isolando a persistência.
+window.noelSync = {
+  baseCatalog,
+  read() {
+    const history=JSON.parse(localStorage.getItem('noel-history')||'[]');
+    // IDs estáveis evitam duplicar o histórico legado ao repetir uma migração.
+    history.forEach((item,index)=>{if(!item.id)item.id='legacy-'+index+'-'+encodeURIComponent(item.store+'-'+item.date);});
+    return {stores:Object.fromEntries(['01','02','03','04'].map(store=>[store,{
+      selected:JSON.parse(localStorage.getItem(`noel-current-${store}`)||'{}'),quantities:loadQuantities(store)
+    }])),catalog:JSON.parse(localStorage.getItem('noel-catalog-edits')||'{"added":[],"removed":[]}'),history};
+  },
+  apply(data) {
+    for(const [store,values] of Object.entries(data.stores)){
+      localStorage.setItem(`noel-current-${store}`,JSON.stringify(values.selected));
+      localStorage.setItem(`noel-quantities-${store}`,JSON.stringify(values.quantities));
+    }
+    localStorage.setItem('noel-catalog-edits',JSON.stringify(data.catalog));
+    localStorage.setItem('noel-history',JSON.stringify(data.history));
+    catalogEdits.added=data.catalog.added;catalogEdits.removed=data.catalog.removed;applyCatalogEdits();
+    state.selected=data.stores[state.store].selected;state.quantities=data.stores[state.store].quantities;
+    const focused=document.activeElement;
+    const editing=focused?.dataset?.qtyKey;
+    const value=focused?.value;
+    refreshCatalog();renderHistory();
+    if(editing){const input=[...els.productList.querySelectorAll('.qty-input')].find(x=>x.dataset.qtyKey===editing);if(input){input.focus();if(input.value===value&&input.type==='text')input.setSelectionRange(value.length,value.length);}}
+  }
+};

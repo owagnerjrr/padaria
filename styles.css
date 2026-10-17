@@ -328,3 +328,4 @@ body{background:linear-gradient(180deg,#fff 0,#f3f7ff 370px,#f7f9fc 100%)}
 .manage-result{display:flex;align-items:center;justify-content:space-between;gap:8px;border-bottom:1px solid #e1e7ef;padding:8px 2px;font-size:12px}
 .manage-delete{border:1px solid #ffc8cf;background:#ffedef;color:#b71830;padding:7px 11px;border-radius:8px;font-weight:700;cursor:pointer}
 @media(max-width:680px){.manage-form{grid-template-columns:1fr}.manage-form button{width:100%}.manage-panel{padding:11px}}
+[hidden] { display: none !important; }

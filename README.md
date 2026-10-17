@@ -1,38 +1,32 @@
 # Controle de Produção Noel
 
-Sistema web simples e responsivo para conferência diária dos produtos disponíveis nas lojas.
+Conferência das quatro lojas, catálogo compartilhado, quantidades independentes
+da seleção, histórico, importação/exportação Excel e WhatsApp.
 
-## Funcionalidades
+A versão em validação funciona diretamente pelo link, **sem conta ou login**.
+O navegador chama `/api/sync`; somente a API Vercel acessa o Firestore pelo Admin SDK.
+Não há SDK Firebase nem credenciais administrativas no frontend.
 
-- Seleção entre Loja 01, 02, 03 e 04.
-- Catálogo organizado por categorias.
-- Pesquisa rápida por produto.
-- Checklist de produtos disponíveis.
-- Campo opcional de quantidade por item.
-- Resumo automático da conferência.
-- Relatório pronto para copiar ou compartilhar pelo WhatsApp.
-- Salvamento local da conferência atual.
-- Histórico local das últimas conferências salvas.
-- Interface adaptada para celular.
+- [Arquitetura, testes e limitações](REALTIME.md)
+- [Passo a passo: conta de serviço e segredos na Vercel](CONFIGURACAO_FIREBASE.md)
 
-## Estrutura
+## Desenvolvimento
 
-O projeto é estático e pode ser publicado diretamente no Vercel sem etapa de build.
+Node.js 24. Instalar com `npm ci`, testar com `npm test`, gerar estáticos com
+`npm run build`. Vercel usa `dist` e a Function `api/sync.js`, na região `gru1`.
 
-Arquivos principais:
+Para testar a interface sem credenciais nem dados reais:
 
-- `index.html`
-- `styles.css`
-- `app.js`
+```sh
+npm run build
+node scripts/dev-server.mjs --test-fixture
+```
 
-## Publicação no Vercel
+Esse modo usa um banco de teste em memória; **não é Firebase** e não é incluído na
+API de produção. Sem essa opção, `npm run dev` exige os segredos de backend configurados.
 
-1. Importe este repositório no Vercel.
-2. Framework Preset: `Other`.
-3. Build Command: deixe vazio.
-4. Output Directory: deixe vazio.
-5. Faça o deploy.
+Produção atual: https://padaria-kappa-six.vercel.app/
+Repositório: https://github.com/owagnerjrr/padaria
 
-## Observação importante
-
-Nesta primeira versão, os dados e o histórico são salvos no `localStorage` do navegador. Isso é adequado para o piloto em um único celular/aparelho. Se depois for necessário sincronizar entre aparelhos, manter backup em nuvem ou administrar os produtos remotamente, pode-se adicionar um banco de dados como Firebase/Firestore ou Supabase.
+Não integrar esta branch antes de validar a API com a conta de serviço real,
+homologar a migração e receber aprovação para produção.

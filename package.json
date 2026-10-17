@@ -1,0 +1,1 @@
+{"name":"noel-producao","private":true,"type":"module","engines":{"node":"24.x"},"scripts":{"build":"node scripts/build.mjs","test":"node --test tests/*.test.mjs","dev":"node scripts/dev-server.mjs"},"dependencies":{"firebase-admin":"14.5.0"}}
