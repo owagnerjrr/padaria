@@ -3,7 +3,8 @@ import {flatten,materialize} from './sync-core.js';
 const ui=window.noelSync, original=ui.read();
 const get=id=>document.getElementById(id),main=document.querySelector('main');
 let editor=true,first=true,timer;
-let waitingForCloud=false;
+let lastRenderedSnapshot='';
+let pendingRender=null;
 function backup(download=true){
   const saved={};for(let i=0;i<localStorage.length;i++){const key=localStorage.key(i);if(key.startsWith('noel-')&&!key.startsWith('noel-backup-'))saved[key]=localStorage.getItem(key);}
   const data=JSON.stringify({version:2,createdAt:new Date().toISOString(),data:ui.read(),localStorage:saved},null,2);
@@ -11,7 +12,20 @@ function backup(download=true){
   if(download){const url=URL.createObjectURL(new Blob([data],{type:'application/json'}));const link=document.createElement('a');link.href=url;link.download='noel-backup-'+Date.now()+'.json';link.click();setTimeout(()=>URL.revokeObjectURL(url),2000);}
 }
 const engine=new ApiSync({storage:localStorage,
-  onUpdate(values,initialized){if(initialized){if(first){backup(false);first=false;}ui.apply(materialize(values,ui.baseCatalog));}},
+  onUpdate(values,initialized){
+    if(!initialized)return;
+    const snapshot=JSON.stringify(values);
+    if(snapshot===lastRenderedSnapshot)return;
+    const focused=document.activeElement;
+    // Não recriar os campos enquanto alguém está digitando: isso faz perder o foco e o valor.
+    if(focused?.matches?.('input,textarea,select')&&focused.closest?.('.product-list,.manage-panel')){
+      pendingRender=()=>{if(snapshot!==lastRenderedSnapshot){lastRenderedSnapshot=snapshot;ui.apply(materialize(values,ui.baseCatalog));}};
+      return;
+    }
+    if(first){backup(false);first=false;}
+    lastRenderedSnapshot=snapshot;
+    ui.apply(materialize(values,ui.baseCatalog));
+  },
   onStatus(state){
     main.inert=false;get('conflictButton').hidden=!state.conflicts.length;
     get('syncStatus').textContent=state.offline?'🔴 Sem conexão'+(state.pending?' · alterações pendentes':''):state.error?'⚠️ Erro de sincronização':state.conflicts.length?'⚠️ Conflito · revisar':state.pending?'🟡 Salvando alterações':state.initialized?'🟢 Sincronizado':'🟡 Aguardando nuvem';
@@ -26,6 +40,7 @@ const engine=new ApiSync({storage:localStorage,
   }
 });
 ui.onChange=()=>{try{if(editor){engine.capture(flatten(ui.read()));clearTimeout(timer);timer=setTimeout(()=>engine.flush(),650);}}catch(e){main.inert=false;get('syncStatus').textContent='⚠️ Erro de armazenamento';get('syncMessage').textContent=e.message;}};
+document.addEventListener('focusout',()=>{if(pendingRender){const apply=pendingRender;pendingRender=null;setTimeout(()=>{if(!document.activeElement?.matches?.('.qty-input,.code-input'))apply();},100);}});
 get('backupButton').onclick=()=>{try{backup();get('syncMessage').textContent='Backup preservado no navegador e enviado para download.';}catch(e){get('syncMessage').textContent=e.message;}};
 get('retrySync').onclick=async()=>{engine.retryAt=0;await engine.poll();await engine.flush();};
 get('migrateButton').onclick=async()=>{
