@@ -360,3 +360,10 @@ body{background:linear-gradient(180deg,#fff 0,#f3f7ff 370px,#f7f9fc 100%)}
 .manage-icon-controls select{width:100%;min-width:0;min-height:42px;padding:8px;border:1px solid #c9d6e7;border-radius:9px;background:#fff;font-size:15px}
 .manage-icon-controls button{min-height:42px}
 @media(max-width:580px){.manage-icon-controls{grid-template-columns:minmax(0,1fr) 100px}.manage-icon-controls button{grid-column:1/-1}}
+
+.manage-create-category{margin:12px 0;padding:12px;border:1px solid #d7e2f1;border-radius:10px;background:#f8fbff}
+.manage-create-category>label{display:block;font-size:12px;font-weight:700;margin-bottom:7px}
+.manage-category-controls{display:flex;gap:8px;align-items:center}
+.manage-category-controls input{flex:1;min-width:0;min-height:40px;padding:8px;border:1px solid #c9d6e7;border-radius:9px;background:#fff}
+.manage-category-controls button{min-height:40px;white-space:nowrap}
+@media(max-width:480px){.manage-category-controls{flex-direction:column;align-items:stretch}.manage-category-controls button{width:100%}}
