@@ -339,3 +339,16 @@ body{background:linear-gradient(180deg,#fff 0,#f3f7ff 370px,#f7f9fc 100%)}
 /* Grid com código antes da quantidade */
 @media(min-width:901px){.product-row{grid-template-columns:24px minmax(0,1fr) 112px 130px!important}.product-row .code-wrap{grid-column:3;grid-row:1}.product-row .qty-wrap{grid-column:4!important;grid-row:1!important}}
 @media(max-width:900px){.product-row{grid-template-rows:auto auto auto!important}.product-row .code-wrap{grid-column:2!important;grid-row:2!important;justify-self:start}.product-row .code-input{width:125px;min-height:34px}.product-row .qty-wrap{grid-column:2!important;grid-row:3!important}}
+
+/* Ajuste responsivo: código legível no celular; campos agrupados à direita no PC */
+@media (min-width:901px){
+ .product-row{grid-template-columns:24px minmax(0,1fr) 150px 150px!important;align-items:center}
+ .product-row .code-wrap{grid-column:3!important;grid-row:1!important;justify-self:end;width:145px}
+ .product-row .code-input{width:100%!important;min-height:38px}
+ .product-row .qty-wrap{grid-column:4!important;grid-row:1!important;justify-content:flex-end!important;width:145px!important}
+}
+@media (max-width:900px){
+ .product-row .code-wrap{grid-column:2!important;grid-row:2!important;width:155px!important;max-width:100%!important}
+ .product-row .code-input{width:155px!important;max-width:100%!important;min-height:40px!important;padding:8px 10px!important;font-size:14px!important;box-sizing:border-box}
+ .product-row .qty-wrap{grid-column:2!important;grid-row:3!important}
+}
