@@ -19,7 +19,7 @@ const engine=new ApiSync({storage:localStorage,
     const focused=document.activeElement;
     // Não recriar os campos enquanto alguém está digitando: isso faz perder o foco e o valor.
     if(focused?.matches?.('input,textarea,select')&&focused.closest?.('.product-list,.manage-panel')){
-      pendingRender=()=>{if(snapshot!==lastRenderedSnapshot){lastRenderedSnapshot=snapshot;ui.apply(materialize(values,ui.baseCatalog));}};
+      pendingRender=true;
       return;
     }
     if(first){backup(false);first=false;}
@@ -40,7 +40,7 @@ const engine=new ApiSync({storage:localStorage,
   }
 });
 ui.onChange=()=>{try{if(editor){engine.capture(flatten(ui.read()));clearTimeout(timer);timer=setTimeout(()=>engine.flush(),650);}}catch(e){main.inert=false;get('syncStatus').textContent='⚠️ Erro de armazenamento';get('syncMessage').textContent=e.message;}};
-document.addEventListener('focusout',()=>{if(pendingRender){const apply=pendingRender;pendingRender=null;setTimeout(()=>{if(!document.activeElement?.matches?.('.qty-input,.code-input'))apply();},100);}});
+document.addEventListener('focusout',()=>{if(pendingRender){setTimeout(()=>{if(!document.activeElement?.matches?.('.qty-input,.code-input')){pendingRender=null;engine.render();}},150);}});
 get('backupButton').onclick=()=>{try{backup();get('syncMessage').textContent='Backup preservado no navegador e enviado para download.';}catch(e){get('syncMessage').textContent=e.message;}};
 get('retrySync').onclick=async()=>{engine.retryAt=0;await engine.poll();await engine.flush();};
 get('migrateButton').onclick=async()=>{
