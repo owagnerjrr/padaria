@@ -191,7 +191,7 @@ function renderManageResults() {
     const label=document.createElement("span");label.textContent=item.name+" · "+item.category;
     const editButton=document.createElement("button");editButton.type="button";editButton.textContent="Editar";editButton.className="secondary-button";
     editButton.addEventListener("click",()=>{
-      const name=prompt("Editar nome do produto:",item.name)?.trim().replace(/\\s+/g," ");
+      const name=prompt("Editar nome do produto:",item.name)?.trim().replace(/\s+/g," ");
       if(name===undefined||name===null)return;
       if(!name||name.length>120||/[<>|]/.test(name)){manage.message.textContent="Nome inválido (máximo 120 caracteres, sem < > ou |).";return;}
       const category=prompt("Categoria do produto ("+Object.keys(catalog).join(", ")+"):",item.category)?.trim();
