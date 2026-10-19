@@ -237,7 +237,7 @@ function renderProducts() {
   let html = "";
 
   categories.forEach(category => {
-    const matches = catalog[category].filter(name => (!query || normalize(name).includes(query)) && (!state.onlySelected || !!state.selected[keyFor(category,name)]));
+    const matches = catalog[category].filter(name => (!query || normalize(name).includes(query)) && (!state.onlySelected || !!state.selected[keyFor(category,name)])).sort((a,b) => a.localeCompare(b,"pt-BR",{sensitivity:"base",numeric:true}));
     if (!matches.length) return;
     html += `<div class="category-title">${iconForCategory(category)} ${escapeHTML(category)}</div>`;
     html += matches.map(name => {
