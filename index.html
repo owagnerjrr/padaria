@@ -58,14 +58,14 @@
     </section>
 
     <details class="panel manage-panel" id="manageCatalog">
-      <summary>⚙️ Gerenciar produtos — adicionar ou excluir</summary>
+      <summary>⚙️ Gerenciar produtos — adicionar, editar ou excluir</summary>
       <p class="hint">As alterações no catálogo valem para as quatro lojas. A categoria é sugerida automaticamente, mas você pode corrigir.</p>
       <form id="addProductForm" class="manage-form">
         <label>Nome do produto<input id="newProductName" type="text" maxlength="120" placeholder="Ex.: Pão integral" required /></label>
         <label>Categoria sugerida<select id="newProductCategory"><option>Doces</option><option>Salgados</option><option>Sabores</option><option>Caseiros</option><option>Hortifrúti</option><option>Açougue</option><option>Pizzas</option></select></label>
         <button type="submit" class="primary-button">＋ Adicionar produto</button>
       </form>
-      <div class="manage-create-category"><label for="newCategoryName">Criar nova categoria</label><div class="manage-category-controls"><input id="newCategoryName" type="text" maxlength="50" placeholder="Ex.: Congelados" /><button id="createCategoryButton" class="secondary-button" type="button">＋ Criar categoria</button></div></div><div class="manage-icons"><label for="groupIconCategory">Ícone do grupo / categoria</label><div class="manage-icon-controls"><select id="groupIconCategory" aria-label="Grupo para alterar ícone"></select><select id="groupIconChoice" aria-label="Escolher ícone do grupo"></select><button id="saveGroupIcon" class="secondary-button" type="button">Salvar ícone</button></div><p class="hint">Escolha o grupo e o desenho que aparecerá na separação e nos filtros de produtos.</p></div><div class="manage-remove"><label for="manageSearch">Buscar produto para excluir</label><input id="manageSearch" type="search" placeholder="Pesquisar no catálogo..." /><div id="manageResults" class="manage-results"></div></div>
+      <div class="manage-create-category"><label for="newCategoryName">Criar nova categoria</label><div class="manage-category-controls"><input id="newCategoryName" type="text" maxlength="50" placeholder="Ex.: Congelados" /><button id="createCategoryButton" class="secondary-button" type="button">＋ Criar categoria</button></div></div><div class="manage-icons"><label for="groupIconCategory">Ícone do grupo / categoria</label><div class="manage-icon-controls"><select id="groupIconCategory" aria-label="Grupo para alterar ícone"></select><select id="groupIconChoice" aria-label="Escolher ícone do grupo"></select><button id="saveGroupIcon" class="secondary-button" type="button">Salvar ícone</button></div><p class="hint">Escolha o grupo e o desenho que aparecerá na separação e nos filtros de produtos.</p></div><div class="manage-remove"><label for="manageSearch">Buscar produto para editar ou excluir</label><input id="manageSearch" type="search" placeholder="Pesquisar no catálogo..." /><div id="manageResults" class="manage-results"></div></div>
       <p id="manageMessage" role="status" class="hint"></p>
     </details>
     <section class="panel import-panel">
