@@ -189,6 +189,43 @@ function renderManageResults() {
   items.forEach(item=>{
     const row=document.createElement("div");row.className="manage-result";
     const label=document.createElement("span");label.textContent=item.name+" · "+item.category;
+    const editButton=document.createElement("button");editButton.type="button";editButton.textContent="Editar";editButton.className="secondary-button";
+    editButton.addEventListener("click",()=>{
+      const name=prompt("Editar nome do produto:",item.name)?.trim().replace(/\\s+/g," ");
+      if(name===undefined||name===null)return;
+      if(!name||name.length>120||/[<>|]/.test(name)){manage.message.textContent="Nome inválido (máximo 120 caracteres, sem < > ou |).";return;}
+      const category=prompt("Categoria do produto ("+Object.keys(catalog).join(", ")+"):",item.category)?.trim();
+      if(category===undefined||category===null)return;
+      if(!catalog[category]){manage.message.textContent="Categoria não encontrada. Escolha uma categoria existente.";return;}
+      const oldKey=keyFor(item.category,item.name),newKey=keyFor(category,name);
+      if(newKey===oldKey){manage.message.textContent="Nenhuma alteração realizada.";return;}
+      if(Object.entries(catalog).some(([cat,names])=>names.some(existing=>keyFor(cat,existing)!==oldKey&&normalize(existing)===normalize(name)))){manage.message.textContent="Já existe outro produto com este nome.";return;}
+      if(!confirm('Salvar alteração de "'+item.name+'" para "'+name+'" em '+category+'? As quantidades e marcações das quatro lojas serão preservadas.'))return;
+      const stores=["01","02","03","04"];
+      for(const store of stores){
+        const selected=JSON.parse(localStorage.getItem("noel-current-"+store)||"{}");
+        const quantities=JSON.parse(localStorage.getItem("noel-quantities-"+store)||"{}");
+        if(Object.prototype.hasOwnProperty.call(selected,oldKey)){
+          selected[newKey]={...selected[oldKey],category,name};delete selected[oldKey];
+        }
+        if(Object.prototype.hasOwnProperty.call(quantities,oldKey)){
+          quantities[newKey]=quantities[oldKey];delete quantities[oldKey];
+        }
+        localStorage.setItem("noel-current-"+store,JSON.stringify(selected));
+        localStorage.setItem("noel-quantities-"+store,JSON.stringify(quantities));
+        if(store===state.store){state.selected=selected;state.quantities=quantities;}
+      }
+      if(Object.prototype.hasOwnProperty.call(productCodes,oldKey)){productCodes[newKey]=productCodes[oldKey];delete productCodes[oldKey];}
+      catalogEdits.added=catalogEdits.added.filter(x=>keyFor(x.category,x.name)!==oldKey&&keyFor(x.category,x.name)!==newKey);
+      catalogEdits.removed=catalogEdits.removed.filter(x=>keyFor(x.category,x.name)!==newKey);
+      catalogEdits.removed.push({category:item.category,name:item.name});
+      catalogEdits.added.push({category,name});
+      localStorage.setItem("noel-product-codes",JSON.stringify(productCodes));
+      saveCatalogEdits();
+      manage.search.value=name;
+      manage.message.textContent="Produto editado. Quantidades, seleções e código preservados nas quatro lojas. Aguarde a sincronização.";
+      refreshCatalog();
+    });
     const button=document.createElement("button");button.type="button";button.textContent="Excluir";button.className="manage-delete";
     button.addEventListener("click",()=>{
       if(!confirm('Excluir "'+item.name+'" do catálogo? As quantidades e seleções deste produto serão apagadas nas quatro lojas.'))return;
@@ -205,7 +242,7 @@ function renderManageResults() {
       delete state.selected[key];delete state.quantities[key];delete productCodes[key];saveProductCodes();
       saveCatalogEdits();manage.message.textContent="Produto excluído do catálogo.";refreshCatalog();
     });
-    row.append(label,button);manage.results.append(row);
+    row.append(label,editButton,button);manage.results.append(row);
   });
   if(!items.length)manage.results.textContent="Nenhum produto encontrado.";
 }
